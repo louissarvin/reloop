@@ -4,9 +4,13 @@ pragma solidity ^0.8.24;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./ReLoopRWA.sol";
 
 contract ReLoopMarketplace is Ownable, ReentrancyGuard {
+    using SafeERC20 for IERC20;
+
     uint16 public constant BASIS_POINTS = 10000;
 
     struct Listing {
@@ -16,6 +20,7 @@ contract ReLoopMarketplace is Ownable, ReentrancyGuard {
     }
 
     ReLoopRWA public immutable rwaContract;
+    IERC20 public immutable paymentToken;
     address public platformWallet;
 
     mapping(uint256 => Listing) public listings;
@@ -42,17 +47,19 @@ contract ReLoopMarketplace is Ownable, ReentrancyGuard {
     error NotApproved();
     error ListingNotActive();
     error InvalidPrice();
-    error InsufficientPayment();
+    error InsufficientAllowance();
     error CannotBuyOwnToken();
     error TransferFailed();
     error InvalidPlatformWallet();
 
     constructor(
         address _rwaContract,
+        address _paymentToken,
         address _platformWallet,
         address _owner
     ) Ownable(_owner) {
         rwaContract = ReLoopRWA(_rwaContract);
+        paymentToken = IERC20(_paymentToken);
         platformWallet = _platformWallet;
     }
 
@@ -90,17 +97,22 @@ contract ReLoopMarketplace is Ownable, ReentrancyGuard {
         emit Delisted(tokenId, msg.sender);
     }
 
-    function buy(uint256 tokenId) external payable nonReentrant {
+    function buy(uint256 tokenId) external nonReentrant {
         Listing storage listing = listings[tokenId];
 
         if (!listing.active) revert ListingNotActive();
-        if (msg.value < listing.price) revert InsufficientPayment();
         if (msg.sender == listing.seller) revert CannotBuyOwnToken();
 
         address seller = listing.seller;
         uint256 salePrice = listing.price;
 
+        if (paymentToken.allowance(msg.sender, address(this)) < salePrice) {
+            revert InsufficientAllowance();
+        }
+
         listing.active = false;
+
+        paymentToken.safeTransferFrom(msg.sender, address(this), salePrice);
 
         (
             ,
@@ -135,16 +147,12 @@ contract ReLoopMarketplace is Ownable, ReentrancyGuard {
         rwaContract.recordSale(tokenId, msg.sender, salePrice);
 
         if (platformFee > 0) {
-            _safeTransfer(platformWallet, platformFee);
+            paymentToken.safeTransfer(platformWallet, platformFee);
             emit PlatformFeeCollected(tokenId, platformFee);
         }
 
         if (sellerAmount > 0) {
-            _safeTransfer(seller, sellerAmount);
-        }
-
-        if (msg.value > salePrice) {
-            _safeTransfer(msg.sender, msg.value - salePrice);
+            paymentToken.safeTransfer(seller, sellerAmount);
         }
 
         emit Sale(tokenId, seller, msg.sender, salePrice, profit);
@@ -168,7 +176,7 @@ contract ReLoopMarketplace is Ownable, ReentrancyGuard {
             uint256 share = (salePrice * profitSplitsBps[i]) / BASIS_POINTS;
 
             if (share > 0 && prevOwners[i] != address(0)) {
-                _safeTransfer(prevOwners[i], share);
+                paymentToken.safeTransfer(prevOwners[i], share);
                 totalDistributed += share;
 
                 emit ProfitDistributed(
@@ -181,11 +189,6 @@ contract ReLoopMarketplace is Ownable, ReentrancyGuard {
         }
 
         sellerAmount = salePrice - totalDistributed;
-    }
-
-    function _safeTransfer(address to, uint256 amount) internal {
-        (bool success, ) = payable(to).call{value: amount}("");
-        if (!success) revert TransferFailed();
     }
 
     function getListing(uint256 tokenId) external view returns (
@@ -244,6 +247,4 @@ contract ReLoopMarketplace is Ownable, ReentrancyGuard {
 
         sellerAmount = salePrice - totalDistributed;
     }
-
-    receive() external payable {}
 }

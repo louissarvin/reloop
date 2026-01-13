@@ -81,7 +81,7 @@ contract ReLoopRWA is ERC721, ERC721URIStorage, Ownable, ReentrancyGuard {
             revert TotalSplitsExceedLimit();
         }
 
-        tokenId = _nextTokenId++;
+        tokenId = ++_nextTokenId;
 
         _tokenConfigs[tokenId] = TokenConfig({
             depth: depth,
