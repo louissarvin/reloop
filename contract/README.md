@@ -9,10 +9,26 @@ ReLoop is a marketplace where tokenized real-world assets can be traded with a u
 ### Key Features
 
 - **Profit Cascade**: Up to 5 generations of previous owners earn from future sales
-- **Configurable Splits**: Token creators define profit percentages for each generation
+- **Tiered Cap System**: Maximum profit split is determined by depth (depth × 4%)
+- **USDC Payments**: All transactions use USDC stablecoin for predictable pricing
 - **Hardcoded Platform Fee**: 1.5% fee on every transaction
 - **Loss Protection**: No cascade distribution when sold at a loss (seller keeps proceeds minus platform fee)
 - **On-chain History**: Full ownership history tracked for transparent distributions
+
+### Tiered Cap System
+
+The profit split is capped based on the chosen depth level to ensure sellers always retain a fair share:
+
+| Depth | Max Split | Example Splits | Min Seller Receives |
+|-------|-----------|----------------|---------------------|
+| 0 | 0% | N/A (simple sale) | 98.5% |
+| 1 | 4% | [4%] | 94.5% |
+| 2 | 8% | [5%, 3%] | 90.5% |
+| 3 | 12% | [6%, 4%, 2%] | 86.5% |
+| 4 | 16% | [6%, 4%, 3%, 3%] | 82.5% |
+| 5 | 20% | [6%, 5%, 4%, 3%, 2%] | 78.5% |
+
+**Formula:** `Max Split = Depth × 4%` (400 basis points per depth level)
 
 ## Contracts
 
@@ -44,19 +60,19 @@ ReLoop is a marketplace where tokenized real-world assets can be traded with a u
 ## Profit Distribution Example
 
 ```
-Token Config: 3 generations with splits [10%, 5%, 3%]
+Token Config: Depth 3 with splits [6%, 4%, 2%] = 12% total (max allowed)
 Platform Fee: 1.5%
 
 Ownership Chain:
-  Alice (minter) → Bob (1 ETH) → Charlie (2 ETH) → Dave (3 ETH)
+  Alice (minter) → Bob (100 USDC) → Charlie (200 USDC) → Dave (300 USDC)
 
-When Dave buys for 3 ETH:
-┌──────────────────────────────────────┐
-│ Platform Fee:  0.045 ETH  (1.5%)     │
-│ Bob (Gen 1):   0.30 ETH   (10%)      │
-│ Alice (Gen 2): 0.15 ETH   (5%)       │
-│ Charlie:       2.505 ETH  (seller)   │
-└──────────────────────────────────────┘
+When Dave buys for 300 USDC:
+┌────────────────────────────────────────┐
+│ Platform Fee:  4.50 USDC   (1.5%)      │
+│ Bob (Gen 1):   18.00 USDC  (6%)        │
+│ Alice (Gen 2): 12.00 USDC  (4%)        │
+│ Charlie:       265.50 USDC (seller)    │
+└────────────────────────────────────────┘
 ```
 
 ## Installation
@@ -116,19 +132,28 @@ forge test --gas-report
 function mint(
     address to,
     string calldata uri,
-    uint8 depth,                    // 1-5 generations
-    uint16[] calldata profitSplitsBps  // Basis points for each gen
+    uint8 depth,                       // 0-5 generations (0 = simple sale)
+    uint16[] calldata profitSplitsBps  // Basis points for each gen (max = depth × 4%)
 ) external returns (uint256 tokenId)
 ```
 
-**Example:**
+**Example (Depth 3 with tiered cap):**
 ```solidity
+// Max allowed for depth 3 = 3 × 4% = 12% (1200 bps)
 uint16[] memory splits = new uint16[](3);
-splits[0] = 1000; // 10% to most recent previous owner
-splits[1] = 500;  // 5% to second previous owner
-splits[2] = 300;  // 3% to third previous owner
+splits[0] = 600;  // 6% to most recent previous owner
+splits[1] = 400;  // 4% to second previous owner
+splits[2] = 200;  // 2% to third previous owner
+// Total: 12% (within cap)
 
 rwa.mint(msg.sender, "ipfs://metadata.json", 3, splits);
+```
+
+**Example (Depth 0 - Simple Sale):**
+```solidity
+// No profit cascade, just platform fee
+uint16[] memory emptySplits = new uint16[](0);
+rwa.mint(msg.sender, "ipfs://metadata.json", 0, emptySplits);
 ```
 
 #### View Functions
@@ -157,14 +182,18 @@ function getLastPurchasePrice(uint256 tokenId) external view returns (uint256)
 // First approve the marketplace
 rwa.approve(address(marketplace), tokenId);
 
-// Then list
-marketplace.list(tokenId, 1 ether);
+// Then list (price in USDC - 6 decimals)
+marketplace.list(tokenId, 100 * 10**6);  // 100 USDC
 ```
 
 #### Buy a Token
 
 ```solidity
-marketplace.buy{value: 1 ether}(tokenId);
+// First approve USDC spending
+usdc.approve(address(marketplace), 100 * 10**6);
+
+// Then buy
+marketplace.buy(tokenId);
 ```
 
 #### Preview Distribution
@@ -186,6 +215,15 @@ function calculateDistribution(uint256 tokenId, uint256 salePrice) external view
 | `MAX_DEPTH` | 5 | Maximum profit cascade generations |
 | `BASIS_POINTS` | 10000 | Denominator for percentage calculations |
 | `PLATFORM_FEE_BPS` | 150 | Platform fee (1.5%) |
+| `SPLIT_CAP_PER_DEPTH_BPS` | 400 | 4% cap per depth level |
+
+### Helper Functions
+
+```solidity
+// Get max allowed split for a given depth
+function getMaxSplitForDepth(uint8 depth) public pure returns (uint16 maxSplitBps)
+// Returns: depth * 400 (e.g., depth 3 → 1200 bps = 12%)
+```
 
 ## Events
 
@@ -233,8 +271,8 @@ forge script script/Deploy.s.sol \
 
 - **ReentrancyGuard**: All state-changing functions are protected
 - **Access Control**: Only marketplace can record sales; only owner can update settings
-- **Input Validation**: Depth (1-5), splits must match depth, total splits ≤ 100%
-- **Safe Transfers**: Uses low-level call with proper error handling
+- **Input Validation**: Depth (0-5), splits must match depth, total splits ≤ tiered cap (depth × 4%)
+- **SafeERC20**: Uses OpenZeppelin's SafeERC20 for all USDC transfers
 
 ## License
 

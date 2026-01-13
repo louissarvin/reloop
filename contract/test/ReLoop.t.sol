@@ -22,7 +22,7 @@ contract ReLoopTest is Test {
 
     uint256 constant USDC_DECIMALS = 6;
     uint256 constant ONE_USDC = 10 ** USDC_DECIMALS;
-    uint256 constant INITIAL_BALANCE = 100_000 * ONE_USDC; 
+    uint256 constant INITIAL_BALANCE = 100_000 * ONE_USDC;
 
     function setUp() public {
         vm.startPrank(owner);
@@ -42,9 +42,95 @@ contract ReLoopTest is Test {
         vm.stopPrank();
 
         defaultSplits = new uint16[](3);
-        defaultSplits[0] = 1000; 
-        defaultSplits[1] = 500; 
-        defaultSplits[2] = 300;
+        defaultSplits[0] = 600; 
+        defaultSplits[1] = 400; 
+        defaultSplits[2] = 200; 
+    }
+
+
+    function test_GetMaxSplitForDepth() public view {
+        assertEq(rwa.getMaxSplitForDepth(0), 0);     
+        assertEq(rwa.getMaxSplitForDepth(1), 400);   
+        assertEq(rwa.getMaxSplitForDepth(2), 800);   
+        assertEq(rwa.getMaxSplitForDepth(3), 1200);  
+        assertEq(rwa.getMaxSplitForDepth(4), 1600);  
+        assertEq(rwa.getMaxSplitForDepth(5), 2000);  
+    }
+
+    function test_MintDepthZero() public {
+        uint16[] memory noSplits = new uint16[](0);
+
+        vm.prank(alice);
+        uint256 tokenId = rwa.mint(alice, "ipfs://metadata", 0, noSplits);
+
+        assertEq(rwa.ownerOf(tokenId), alice);
+
+        (uint8 depth, uint16[] memory splits, uint16 platformFee, bool isConfigured) =
+            rwa.getTokenConfig(tokenId);
+
+        assertEq(depth, 0);
+        assertEq(splits.length, 0);
+        assertEq(platformFee, 150);
+        assertTrue(isConfigured);
+    }
+
+    function test_MintDepthZeroSale() public {
+        uint256 salePrice = 1000 * ONE_USDC;
+        uint16[] memory noSplits = new uint16[](0);
+
+        vm.prank(alice);
+        uint256 tokenId = rwa.mint(alice, "ipfs://metadata", 0, noSplits);
+
+        vm.startPrank(alice);
+        rwa.approve(address(marketplace), tokenId);
+        marketplace.list(tokenId, salePrice);
+        vm.stopPrank();
+
+        uint256 aliceBalanceBefore = usdc.balanceOf(alice);
+        uint256 platformBalanceBefore = usdc.balanceOf(platformWallet);
+
+        vm.startPrank(bob);
+        usdc.approve(address(marketplace), salePrice);
+        marketplace.buy(tokenId);
+        vm.stopPrank();
+
+        uint256 platformFee = 15 * ONE_USDC;
+
+        assertEq(usdc.balanceOf(alice), aliceBalanceBefore + salePrice - platformFee);
+        assertEq(usdc.balanceOf(platformWallet), platformBalanceBefore + platformFee);
+    }
+
+    function test_MintExceedsTieredCap() public {
+        uint16[] memory tooMuchSplits = new uint16[](2);
+        tooMuchSplits[0] = 600; 
+        tooMuchSplits[1] = 500; 
+
+        vm.prank(alice);
+        vm.expectRevert();
+        rwa.mint(alice, "ipfs://metadata", 2, tooMuchSplits);
+    }
+
+    function test_MintAtExactTieredCap() public {
+        uint16[] memory exactSplits = new uint16[](2);
+        exactSplits[0] = 500; 
+        exactSplits[1] = 300; 
+
+        vm.prank(alice);
+        uint256 tokenId = rwa.mint(alice, "ipfs://metadata", 2, exactSplits);
+
+        assertEq(rwa.ownerOf(tokenId), alice);
+    }
+
+    function test_MintUnderTieredCap() public {
+        uint16[] memory underSplits = new uint16[](3);
+        underSplits[0] = 400; 
+        underSplits[1] = 300; 
+        underSplits[2] = 200; 
+
+        vm.prank(alice);
+        uint256 tokenId = rwa.mint(alice, "ipfs://metadata", 3, underSplits);
+
+        assertEq(rwa.ownerOf(tokenId), alice);
     }
 
     function test_Mint() public {
@@ -64,7 +150,7 @@ contract ReLoopTest is Test {
 
         assertEq(depth, 3);
         assertEq(splits.length, 3);
-        assertEq(splits[0], 1000);
+        assertEq(splits[0], 600);
         assertEq(platformFee, 150);
         assertTrue(isConfigured);
     }
@@ -82,23 +168,12 @@ contract ReLoopTest is Test {
 
     function test_MintInvalidSplitsLength() public {
         uint16[] memory wrongSplits = new uint16[](2);
-        wrongSplits[0] = 1000;
-        wrongSplits[1] = 500;
+        wrongSplits[0] = 400;
+        wrongSplits[1] = 300;
 
         vm.prank(alice);
         vm.expectRevert();
         rwa.mint(alice, "ipfs://metadata", 3, wrongSplits);
-    }
-
-    function test_MintTotalSplitsExceed() public {
-        uint16[] memory tooMuchSplits = new uint16[](3);
-        tooMuchSplits[0] = 5000; 
-        tooMuchSplits[1] = 3000; 
-        tooMuchSplits[2] = 2500; 
-
-        vm.prank(alice);
-        vm.expectRevert();
-        rwa.mint(alice, "ipfs://metadata", 3, tooMuchSplits);
     }
 
 
@@ -205,7 +280,7 @@ contract ReLoopTest is Test {
         assertEq(rwa.ownerOf(tokenId), charlie);
 
         uint256 platformFee = 30 * ONE_USDC;
-        uint256 aliceShare = 200 * ONE_USDC;
+        uint256 aliceShare = 120 * ONE_USDC;
 
         assertEq(usdc.balanceOf(platformWallet), platformBalanceBefore + platformFee);
         assertEq(usdc.balanceOf(alice), aliceBalanceBefore + aliceShare);
@@ -240,7 +315,7 @@ contract ReLoopTest is Test {
         marketplace.buy(tokenId);
         vm.stopPrank();
 
-        uint256 aliceShare = 100 * ONE_USDC;
+        uint256 aliceShare = 60 * ONE_USDC;
         assertEq(usdc.balanceOf(alice), aliceBalanceBefore + aliceShare);
     }
 
@@ -322,9 +397,9 @@ contract ReLoopTest is Test {
         marketplace.buy(tokenId);
         vm.stopPrank();
 
-        assertEq(usdc.balanceOf(bob), bobBalanceBefore + 300 * ONE_USDC);
-        assertEq(usdc.balanceOf(alice), aliceBalanceBefore + 150 * ONE_USDC);
-        assertEq(usdc.balanceOf(charlie), charlieBalanceBefore + 2505 * ONE_USDC);
+        assertEq(usdc.balanceOf(bob), bobBalanceBefore + 180 * ONE_USDC);
+        assertEq(usdc.balanceOf(alice), aliceBalanceBefore + 120 * ONE_USDC);
+        assertEq(usdc.balanceOf(charlie), charlieBalanceBefore + 2655 * ONE_USDC);
     }
 
 
@@ -344,10 +419,9 @@ contract ReLoopTest is Test {
 
         assertTrue(willDistribute);
         assertEq(platformFee, 15 * ONE_USDC);
-        assertEq(recipients.length, 0); 
+        assertEq(recipients.length, 0);
         assertEq(sellerAmount, salePrice - 15 * ONE_USDC);
     }
-
 
     function test_OwnerHistoryTracking() public {
         uint256 salePrice = 1000 * ONE_USDC;
@@ -358,7 +432,7 @@ contract ReLoopTest is Test {
         ReLoopRWA.OwnerRecord[] memory history = rwa.getOwnerHistory(tokenId);
         assertEq(history.length, 1);
         assertEq(history[0].owner, alice);
-        assertEq(history[0].purchasePrice, 0); 
+        assertEq(history[0].purchasePrice, 0);
 
         vm.startPrank(alice);
         rwa.approve(address(marketplace), tokenId);
@@ -380,8 +454,8 @@ contract ReLoopTest is Test {
         uint256 salePrice = 1000 * ONE_USDC;
 
         uint16[] memory splits = new uint16[](2);
-        splits[0] = 1000;
-        splits[1] = 500;
+        splits[0] = 500; 
+        splits[1] = 300; 
 
         vm.prank(alice);
         uint256 tokenId = rwa.mint(alice, "ipfs://metadata", 2, splits);
@@ -409,5 +483,38 @@ contract ReLoopTest is Test {
 
         ReLoopRWA.OwnerRecord[] memory history = rwa.getOwnerHistory(tokenId);
         assertEq(history.length, 3);
+    }
+
+    function test_DepthZeroHistoryCapped() public {
+        uint256 salePrice = 1000 * ONE_USDC;
+
+        uint16[] memory noSplits = new uint16[](0);
+
+        vm.prank(alice);
+        uint256 tokenId = rwa.mint(alice, "ipfs://metadata", 0, noSplits);
+
+        vm.startPrank(alice);
+        rwa.approve(address(marketplace), tokenId);
+        marketplace.list(tokenId, salePrice);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        usdc.approve(address(marketplace), salePrice);
+        marketplace.buy(tokenId);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        rwa.approve(address(marketplace), tokenId);
+        marketplace.list(tokenId, salePrice);
+        vm.stopPrank();
+
+        vm.startPrank(charlie);
+        usdc.approve(address(marketplace), salePrice);
+        marketplace.buy(tokenId);
+        vm.stopPrank();
+
+        ReLoopRWA.OwnerRecord[] memory history = rwa.getOwnerHistory(tokenId);
+        assertEq(history.length, 1);
+        assertEq(history[0].owner, charlie);
     }
 }
