@@ -7,3 +7,45 @@
     @apply bg-background text-foreground antialiased font-sans;
   }
 }
+
+/* ConnectKit Custom Overrides */
+[data-testid="ck-connect-button"] {
+  font-weight: 600 !important;
+  transition: all 0.2s ease !important;
+}
+
+[data-testid="ck-connect-button"]:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Modal animations */
+[data-connectkit] [role="dialog"] {
+  animation: ck-modal-enter 0.2s ease-out;
+}
+
+@keyframes ck-modal-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Wallet option hover effect */
+[data-connectkit] button[data-testid^="wallet-option"] {
+  transition: all 0.15s ease !important;
+}
+
+[data-connectkit] button[data-testid^="wallet-option"]:hover {
+  transform: translateX(4px);
+}
+
+/* QR Code container styling */
+[data-connectkit] [data-testid="qr-code"] {
+  border-radius: 16px;
+  overflow: hidden;
+}

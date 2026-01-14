@@ -5,6 +5,7 @@ import { MockService } from '../mocks/service';
 export function Create() {
   const [formData, setFormData] = useState({
     name: '',
+    description: '',
     price: '',
     depth: 3,
     splits: [6, 4, 2] // Default
@@ -55,8 +56,8 @@ export function Create() {
           <div className="grid grid-cols-1 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Make & Model</label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-foreground focus:outline-none transition-all"
                 placeholder="e.g., 2024 Tesla Model Y"
                 value={formData.name}
@@ -64,7 +65,19 @@ export function Create() {
                 required
               />
             </div>
-            
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+              <textarea
+                className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-foreground focus:outline-none transition-all resize-none"
+                placeholder="Describe your vehicle: condition, mileage, features, history..."
+                rows={4}
+                value={formData.description}
+                onChange={e => setFormData({...formData, description: e.target.value})}
+                required
+              />
+            </div>
+
             <div>
                <label className="block text-sm font-medium text-gray-700 mb-1">Listing Price (USDC)</label>
                <input 
