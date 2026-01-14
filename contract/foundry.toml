@@ -17,3 +17,9 @@ remappings = [
 line_length = 120
 tab_width = 4
 bracket_spacing = true
+
+[rpc_endpoints]
+mantle_sepolia = "https://rpc.sepolia.mantle.xyz"
+
+[etherscan]
+mantle_sepolia = { key = "${ETHERSCAN_API_KEY}", url = "https://api-sepolia.mantlescan.xyz/api" }

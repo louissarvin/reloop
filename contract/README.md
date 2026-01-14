@@ -257,15 +257,25 @@ anvil
 forge script script/Deploy.s.sol --rpc-url http://localhost:8545 --broadcast
 ```
 
-### Testnet
+### Testnet (Mantle Sepolia)
 
 ```bash
-forge script script/Deploy.s.sol \
-    --rpc-url $RPC_URL \
-    --private-key $PRIVATE_KEY \
+# Copy and configure .env
+cp .env.example .env
+
+# Deploy to Mantle Sepolia
+source .env && forge script script/Deploy.s.sol:DeployTestnet \
+    --rpc-url mantle_sepolia \
     --broadcast \
-    --verify
+    --private-key $PRIVATE_KEY
 ```
+
+**Deployed Contracts (Mantle Sepolia):**
+| Contract | Address |
+|----------|---------|
+| MockUSDC | `0x72698EF7eDB40709520C92F84024E6556481EA15` |
+| ReLoopRWA | `0xaA4886d00e3A22aB6f4b5105CC782B1C29c3d910` |
+| ReLoopMarketplace | `0x003f586c9Dc9de4FeE29c49E437230258cb4cA9E` |
 
 ## Security Considerations
 
