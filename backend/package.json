@@ -1,0 +1,28 @@
+{
+  "name": "reloop-backend",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "bun --hot src/index.ts",
+    "dev:ponder": "ponder dev",
+    "start": "bun src/index.ts",
+    "start:ponder": "ponder start",
+    "codegen": "ponder codegen",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@ponder/core": "^0.7.0",
+    "hono": "^4.11.4",
+    "pinata-web3": "^0.5.4",
+    "viem": "^2.21.0"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

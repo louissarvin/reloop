@@ -1,0 +1,59 @@
+[
+  {
+    "type": "event",
+    "name": "TokenMinted",
+    "inputs": [
+      { "name": "tokenId", "type": "uint256", "indexed": true, "internalType": "uint256" },
+      { "name": "minter", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "depth", "type": "uint8", "indexed": false, "internalType": "uint8" },
+      { "name": "profitSplitsBps", "type": "uint16[]", "indexed": false, "internalType": "uint16[]" }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "Transfer",
+    "inputs": [
+      { "name": "from", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "to", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "tokenId", "type": "uint256", "indexed": true, "internalType": "uint256" }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "OwnerHistoryUpdated",
+    "inputs": [
+      { "name": "tokenId", "type": "uint256", "indexed": true, "internalType": "uint256" },
+      { "name": "newOwner", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "purchasePrice", "type": "uint256", "indexed": false, "internalType": "uint256" }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "function",
+    "name": "tokenURI",
+    "inputs": [{ "name": "tokenId", "type": "uint256", "internalType": "uint256" }],
+    "outputs": [{ "name": "", "type": "string", "internalType": "string" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "ownerOf",
+    "inputs": [{ "name": "tokenId", "type": "uint256", "internalType": "uint256" }],
+    "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getTokenConfig",
+    "inputs": [{ "name": "tokenId", "type": "uint256", "internalType": "uint256" }],
+    "outputs": [
+      { "name": "depth", "type": "uint8", "internalType": "uint8" },
+      { "name": "profitSplitsBps", "type": "uint16[]", "internalType": "uint16[]" },
+      { "name": "platformFeeBps", "type": "uint16", "internalType": "uint16" },
+      { "name": "isConfigured", "type": "bool", "internalType": "bool" }
+    ],
+    "stateMutability": "view"
+  }
+]
