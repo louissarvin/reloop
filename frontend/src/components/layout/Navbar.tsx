@@ -1,14 +1,23 @@
+import { useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { PlusCircle, Wallet, LayoutGrid } from "lucide-react";
+import { PlusCircle, Wallet, LayoutGrid, Coins, Loader2 } from "lucide-react";
 import { ConnectKitButton } from "connectkit";
 import { useAccount } from "wagmi";
 import { cn } from "../../lib/utils";
-import { useUSDCBalance, formatUSDC } from "../../contracts";
+import { useUSDCBalance, useUSDCAirdrop, formatUSDC } from "../../contracts";
 
 export function Navbar() {
   const location = useLocation();
   const { address, isConnected } = useAccount();
-  const { data: balance } = useUSDCBalance(address);
+  const { data: balance, refetch: refetchBalance } = useUSDCBalance(address);
+  const { claimAirdrop, isPending: isAirdropping, isSuccess: airdropSuccess } = useUSDCAirdrop();
+
+  // Refetch balance after successful airdrop
+  useEffect(() => {
+    if (airdropSuccess) {
+      refetchBalance();
+    }
+  }, [airdropSuccess, refetchBalance]);
 
   const NavItem = ({
     to,
@@ -60,6 +69,15 @@ export function Navbar() {
 
         {/* Wallet Connection */}
         <div className="flex items-center gap-3">
+          {isConnected && !airdropSuccess && balance !== undefined && balance === 0n && (
+            <button
+              onClick={() => claimAirdrop()}
+              disabled={isAirdropping}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-highlight/10 text-highlight rounded-lg text-sm font-medium hover:bg-highlight/20 transition-colors disabled:opacity-50"
+            >
+              {isAirdropping ? 'Claiming...' : 'Get USDC'}
+            </button>
+          )}
           {isConnected && balance !== undefined && (
             <div className="text-right hidden sm:block">
               <div className="text-xs text-muted-foreground">Balance</div>

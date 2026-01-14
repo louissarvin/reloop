@@ -13,23 +13,22 @@ export function CascadeVisualizer({ splits }: CascadeVisualizerProps) {
 
   return (
     <div className="bg-surface border border-border rounded-xl p-6">
-      <h3 className="font-semibold mb-4 flex items-center gap-2">
-        <Users className="text-highlight" size={20} />
+      <h3 className="font-semibold mb-2 flex items-center gap-2">
         Resale Value Loop
       </h3>
-      
+
       <p className="text-sm text-gray-500 mb-6">
         When this car is resold later, <span className="font-medium text-foreground">{(activeSplits.reduce((a,b)=>a+b,0)).toFixed(0)}%</span> of the sale price flows back to previous owners.
       </p>
 
-      <div className="relative pl-4 space-y-6 before:absolute before:left-[21px] before:top-2 before:bottom-4 before:w-0.5 before:bg-gradient-to-b before:from-highlight before:to-transparent">
+      <div className="relative pl-4 space-y-6 ">
         {/* Gen 1 (Seller usually, but in this context it refers to Past Owners) */}
         {activeSplits.map((percent, i) => (
           <div key={i} className="relative flex items-center gap-4 animate-in fade-in slide-in-from-left-2 duration-500" style={{ animationDelay: `${i * 100}ms` }}>
             <div className="w-9 h-9 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center text-accent text-xs font-bold z-10 shrink-0">
               {percent}%
             </div>
-            
+
             <div className="flex-1 min-w-0">
                <div className="font-medium text-sm text-foreground">
                  Gen {i + 1} Owner
@@ -38,7 +37,7 @@ export function CascadeVisualizer({ splits }: CascadeVisualizerProps) {
                  Receives {percent}% of future resale
                </div>
             </div>
-            
+
             <ArrowDown className="text-gray-300 absolute -bottom-5 left-3 z-0" size={14} />
           </div>
         ))}

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAccount } from 'wagmi';
-import { ArrowLeft, Share2, ShieldCheck, Tag, Loader2, ShoppingCart, Clock, User, X } from 'lucide-react';
+import { ArrowLeft, Share2, ShieldCheck, Tag, Loader2, Clock, User, X } from 'lucide-react';
 import {
   fetchTokenDetail,
   fetchTokenMetadata,
@@ -184,7 +184,7 @@ export function Detail() {
             </h1>
 
             <div className="flex flex-wrap gap-4 pt-2">
-              <div className="flex items-center gap-2 text-sm bg-gray-100 px-3 py-1.5 rounded-lg text-gray-700">
+              <div className="flex items-center gap-2 text-sm bg-gray-100 py-1.5 rounded-lg text-gray-700">
                 <ShieldCheck size={16} className="text-highlight" />
                 Verified Ownership
               </div>
@@ -211,7 +211,9 @@ export function Detail() {
                   {metadata.attributes.map((attr, i) => (
                     <div key={i} className="bg-gray-50 rounded-lg p-3">
                       <div className="text-xs text-gray-500 uppercase tracking-wider">{attr.trait_type}</div>
-                      <div className="font-medium text-foreground">{attr.value}</div>
+                      <div className="font-medium text-foreground">
+                        {attr.trait_type === 'Price' ? `$${Number(attr.value).toLocaleString()}` : attr.value}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -292,17 +294,22 @@ export function Detail() {
                 onClick={() => setShowBuyModal(true)}
                 className="w-full bg-foreground text-background font-semibold py-4 rounded-xl hover:bg-gray-800 active:scale-[0.98] transition-all mb-4 shadow-lg shadow-gray-200 flex items-center justify-center gap-2"
               >
-                <ShoppingCart size={20} />
                 Buy Now
               </button>
             )}
 
             {isConnected && isOwner && !isListed && (
               <button
-                onClick={() => setShowListModal(true)}
+                onClick={() => {
+                  // Pre-fill price from metadata if available
+                  const priceAttr = metadata?.attributes?.find(a => a.trait_type === 'Price');
+                  if (priceAttr) {
+                    setListPrice(String(priceAttr.value));
+                  }
+                  setShowListModal(true);
+                }}
                 className="w-full bg-foreground text-background font-semibold py-4 rounded-xl hover:bg-gray-800 active:scale-[0.98] transition-all mb-4 shadow-lg shadow-gray-200 flex items-center justify-center gap-2"
               >
-                <Tag size={20} />
                 List for Sale
               </button>
             )}
@@ -364,7 +371,7 @@ export function Detail() {
             >
               {isApprovingUSDC && <><Loader2 className="w-5 h-5 animate-spin" /> Approving USDC...</>}
               {isBuying && <><Loader2 className="w-5 h-5 animate-spin" /> Completing Purchase...</>}
-              {!isApprovingUSDC && !isBuying && <><ShoppingCart size={20} /> Buy Now</>}
+              {!isApprovingUSDC && !isBuying && <> Buy Now</>}
             </button>
           </div>
         </div>
@@ -395,6 +402,11 @@ export function Detail() {
                   disabled={isApprovingNFT || isListing}
                   required
                 />
+                {metadata?.attributes?.find(a => a.trait_type === 'Price') && (
+                  <p className="text-xs text-gray-500 mt-2">
+                    Original listing price: ${metadata.attributes.find(a => a.trait_type === 'Price')?.value} USDC
+                  </p>
+                )}
               </div>
 
               {listError && (

@@ -8,8 +8,8 @@ import ReLoopMarketplaceAbi from "./abis/ReLoopMarketplace.json";
 const RELOOP_RWA_ADDRESS = "0xaA4886d00e3A22aB6f4b5105CC782B1C29c3d910";
 const RELOOP_MARKETPLACE_ADDRESS = "0x003f586c9Dc9de4FeE29c49E437230258cb4cA9E";
 
-// Contract deployment block (approximate - adjust if needed)
-const START_BLOCK = 0;
+// Contract deployment block
+const START_BLOCK = 33427584;
 
 export default createConfig({
   networks: {

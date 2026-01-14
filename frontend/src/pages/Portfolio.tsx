@@ -23,6 +23,7 @@ interface TokenMetadata {
   name?: string;
   description?: string;
   image?: string;
+  attributes?: Array<{ trait_type: string; value: string | number }>;
 }
 
 interface ListModalProps {
@@ -33,7 +34,9 @@ interface ListModalProps {
 }
 
 function ListModal({ token, metadata, onClose, onSuccess }: ListModalProps) {
-  const [price, setPrice] = useState('');
+  // Pre-fill price from metadata if available
+  const originalPrice = metadata?.attributes?.find(a => a.trait_type === 'Price')?.value;
+  const [price, setPrice] = useState(originalPrice ? String(originalPrice) : '');
   const [step, setStep] = useState<'input' | 'approving' | 'listing'>('input');
 
   const { approve, isPending: isApproving, isSuccess: approveSuccess } = useApproveNFT();
@@ -104,6 +107,11 @@ function ListModal({ token, metadata, onClose, onSuccess }: ListModalProps) {
               disabled={isLoading}
               required
             />
+            {originalPrice && (
+              <p className="text-xs text-gray-500 mt-2">
+                Original listing price: ${originalPrice} USDC
+              </p>
+            )}
           </div>
 
           {listError && (
@@ -229,9 +237,6 @@ export function Portfolio() {
     <div className="max-w-7xl mx-auto px-6 py-12">
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-bold">My Garage</h1>
-        <div className="text-sm text-gray-500 font-mono">
-          {formatAddress(address!)}
-        </div>
       </div>
 
       {/* Stats Cards */}
@@ -244,7 +249,6 @@ export function Portfolio() {
         <div className="bg-surface p-6 rounded-2xl border border-border shadow-sm">
           <div className="text-gray-500 text-sm font-medium mb-1">Loop Earnings</div>
           <div className="text-3xl font-mono font-bold text-accent flex items-center gap-2">
-            <BadgeDollarSign size={28} />
             ${formattedEarnings}
           </div>
         </div>
@@ -252,7 +256,6 @@ export function Portfolio() {
         <div className="bg-surface p-6 rounded-2xl border border-border shadow-sm">
           <div className="text-gray-500 text-sm font-medium mb-1">Owned NFTs</div>
           <div className="text-3xl font-mono font-bold flex items-center gap-2">
-            <CarFront size={28} />
             {profile?.ownedTokens.length || 0}
           </div>
         </div>
@@ -303,7 +306,7 @@ export function Portfolio() {
             return (
               <div
                 key={token.id}
-                className="bg-surface rounded-xl overflow-hidden border border-border hover:border-gray-300 hover:shadow-lg transition-all"
+                className="bg-surface rounded-xl overflow-hidden border border-border"
               >
                 <div className="aspect-[16/10] overflow-hidden bg-gray-100">
                   <img
@@ -329,7 +332,6 @@ export function Portfolio() {
                       onClick={() => setListingToken(token)}
                       className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-foreground text-background rounded-lg font-medium hover:bg-gray-800 transition-colors text-sm"
                     >
-                      <Tag size={16} />
                       List for Sale
                     </button>
                     <Link

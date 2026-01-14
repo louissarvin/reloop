@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAccount } from 'wagmi';
 import { Link } from 'react-router-dom';
-import { Loader2, Search, SlidersHorizontal, ArrowLeftRight, CheckCircle2, ShoppingCart, X } from 'lucide-react';
+import { Loader2, Search, SlidersHorizontal, ArrowLeftRight, CheckCircle2, X } from 'lucide-react';
 import {
   fetchListings,
   fetchTokenDetail,
@@ -138,7 +138,6 @@ function BuyModal({ listing, onClose, onSuccess }: BuyModalProps) {
           )}
           {!isLoading && (
             <>
-              <ShoppingCart size={20} />
               Buy for ${formattedPrice} USDC
             </>
           )}
@@ -270,7 +269,7 @@ export function Marketplace() {
           {filteredListings.map((listing) => (
             <div
               key={listing.id}
-              className="group bg-surface rounded-xl overflow-hidden border border-border hover:border-gray-300 hover:shadow-lg transition-all duration-300"
+              className="group bg-surface rounded-xl overflow-hidden border border-border"
             >
               {/* Image Container */}
               <Link to={`/asset/${listing.tokenId}`} className="block">
@@ -283,9 +282,8 @@ export function Marketplace() {
 
                   {/* Cascade Badge */}
                   {listing.token && listing.token.depth > 0 && (
-                    <div className="absolute top-3 right-3 bg-background/90 backdrop-blur text-xs font-semibold px-2 py-1 rounded-md border border-gray-200 shadow-sm flex items-center gap-1.5">
-                      <ArrowLeftRight size={14} className="text-highlight" />
-                      <span className="text-foreground">Loop Enabled</span>
+                    <div className="absolute top-3 right-3 bg-white text-xs font-semibold px-2 py-1 rounded-md border border-gray-200 shadow-sm flex items-center gap-1.5">
+                      <span className="text-[#008170]">Loop Enabled</span>
                     </div>
                   )}
                 </div>
@@ -326,13 +324,12 @@ export function Marketplace() {
                       onClick={() => setBuyingListing(listing)}
                       className="flex items-center gap-2 px-4 py-2 bg-foreground text-background rounded-lg font-medium hover:bg-gray-800 transition-colors text-sm"
                     >
-                      <ShoppingCart size={16} />
                       Buy
                     </button>
                   ) : (
                     <Link
                       to={`/asset/${listing.tokenId}`}
-                      className="text-accent text-sm font-medium hover:underline"
+                      className="text-accent text-sm font-medium"
                     >
                       View Details →
                     </Link>

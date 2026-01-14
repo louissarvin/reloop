@@ -1,6 +1,6 @@
-import { useState, useRef } from 'react';
-import { ArrowLeftRight, Car, Wallet, Loader2, Image, X, ExternalLink, Tag, Share2, CheckCircle2 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { useState, useRef, useEffect } from 'react';
+import { Car, Wallet, Loader2, Image, X, ExternalLink, Tag, Share2, CheckCircle2 } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAccount } from 'wagmi';
 import { ConnectKitButton } from 'connectkit';
 import { useMintToken } from '../contracts';
@@ -12,6 +12,7 @@ export function Create() {
   const { address, isConnected } = useAccount();
   const { mint, isPending, isConfirming, isSuccess, error: mintError, hash } = useMintToken();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
     name: '',
@@ -119,6 +120,16 @@ export function Create() {
   if (isConfirming && step !== 'minting') setStep('minting');
   if (isSuccess && step !== 'success') setStep('success');
 
+  // Redirect to portfolio after successful mint (with delay to show success message)
+  useEffect(() => {
+    if (isSuccess) {
+      const timer = setTimeout(() => {
+        navigate('/portfolio');
+      }, 3000); // 3 second delay to show success message
+      return () => clearTimeout(timer);
+    }
+  }, [isSuccess, navigate]);
+
   const isLoading = step === 'uploading' || isPending || isConfirming;
   const displayError = uploadError || mintError?.message;
 
@@ -159,18 +170,10 @@ export function Create() {
 
       <form onSubmit={handleSubmit} className="space-y-8 bg-surface p-8 rounded-2xl border border-border shadow-sm">
 
-        {/* Connected Wallet Info */}
-        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-          <span className="text-sm text-gray-500">Connected as</span>
-          <span className="text-sm font-mono font-medium text-foreground">
-            {address?.slice(0, 6)}...{address?.slice(-4)}
-          </span>
-        </div>
-
         {/* Basic Info */}
         <div className="space-y-4">
           <h3 className="text-lg font-semibold flex items-center gap-2">
-            <Car size={20} /> Vehicle Details
+            Vehicle Details
           </h3>
 
           <div className="grid grid-cols-1 gap-4">
@@ -264,10 +267,9 @@ export function Create() {
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold flex items-center gap-2">
-              <ArrowLeftRight size={20} className="text-highlight" />
               Resale Loop Config
             </h3>
-            <div className={`text-sm font-medium px-2 py-0.5 rounded ${totalSplit <= maxSplit ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+            <div className={`text-sm font-medium px-2 py-0.5 rounded rounded-lg ${totalSplit <= maxSplit ? 'bg-[#008170] text-white' : 'bg-red-100 text-red-700'}`}>
               Total: {totalSplit}% / Max {maxSplit}%
             </div>
           </div>
@@ -307,7 +309,7 @@ export function Create() {
                     <label className="text-xs text-gray-400 block mb-1">Gen {i + 1}</label>
                     <input
                       type="number"
-                      className="w-full text-center px-1 py-1.5 rounded border border-gray-300 text-sm disabled:opacity-50"
+                      className="w-full text-center py-1.5 rounded rounded-lg border border-gray-300 text-sm disabled:opacity-50"
                       value={split}
                       onChange={e => updateSplit(i, parseInt(e.target.value) || 0)}
                       disabled={isLoading}
@@ -350,9 +352,10 @@ export function Create() {
             </div>
 
             {/* Post-Mint Actions */}
+            <p className="text-sm text-gray-500 mb-3">Redirecting to your portfolio in 3 seconds...</p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <Link
-                to="/profile"
+                to="/portfolio"
                 className="flex items-center justify-center gap-2 px-4 py-3 bg-foreground text-background rounded-lg font-medium hover:bg-gray-800 transition-colors"
               >
                 <Car size={18} />

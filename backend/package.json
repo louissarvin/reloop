@@ -4,9 +4,11 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "bun --hot src/index.ts",
+    "dev": "concurrently -n api,ponder -c blue,green \"bun --hot src/index.ts\" \"ponder dev\"",
+    "dev:api": "bun --hot src/index.ts",
     "dev:ponder": "ponder dev",
-    "start": "bun src/index.ts",
+    "start": "concurrently -n api,ponder -c blue,green \"bun src/index.ts\" \"ponder start\"",
+    "start:api": "bun src/index.ts",
     "start:ponder": "ponder start",
     "codegen": "ponder codegen",
     "test": "bun test"
@@ -20,6 +22,7 @@
   "devDependencies": {
     "@types/bun": "latest",
     "@types/node": "^20.0.0",
+    "concurrently": "^9.1.2",
     "typescript": "^5.0.0"
   },
   "engines": {

@@ -9,6 +9,15 @@ import {
   userStats,
 } from "../../../ponder.schema";
 
+// Helper to serialize BigInt values to strings
+function serialize<T>(obj: T): T {
+  return JSON.parse(
+    JSON.stringify(obj, (_, value) =>
+      typeof value === "bigint" ? value.toString() : value
+    )
+  );
+}
+
 // Get all tokens with pagination
 ponder.get("/tokens", async (c) => {
   const limit = Number(c.req.query("limit") || 20);
@@ -21,14 +30,18 @@ ponder.get("/tokens", async (c) => {
     .limit(limit)
     .offset(offset);
 
-  return c.json({ tokens, limit, offset });
+  return c.json({ tokens: serialize(tokens), limit, offset });
 });
 
 // Get single token by ID
 ponder.get("/tokens/:id", async (c) => {
   const tokenId = c.req.param("id");
 
-  const tokenData = await c.db.find(token, { id: tokenId });
+  const [tokenData] = await c.db
+    .select()
+    .from(token)
+    .where(eq(token.id, tokenId))
+    .limit(1);
 
   if (!tokenData) {
     return c.json({ error: "Token not found" }, 404);
@@ -42,21 +55,25 @@ ponder.get("/tokens/:id", async (c) => {
     .orderBy(desc(ownerHistory.timestamp));
 
   // Get current listing if active
-  const currentListing = await c.db.find(listing, { id: tokenId });
+  const [currentListing] = await c.db
+    .select()
+    .from(listing)
+    .where(eq(listing.id, tokenId))
+    .limit(1);
 
   // Get sales history
-  const sales = await c.db
+  const salesData = await c.db
     .select()
     .from(sale)
     .where(eq(sale.tokenId, BigInt(tokenId)))
     .orderBy(desc(sale.timestamp));
 
-  return c.json({
+  return c.json(serialize({
     token: tokenData,
     ownerHistory: history,
     listing: currentListing?.active ? currentListing : null,
-    sales,
-  });
+    sales: salesData,
+  }));
 });
 
 // Get active listings
@@ -72,7 +89,7 @@ ponder.get("/listings", async (c) => {
     .limit(limit)
     .offset(offset);
 
-  return c.json({ listings, limit, offset });
+  return c.json({ listings: serialize(listings), limit, offset });
 });
 
 // Get recent sales
@@ -80,21 +97,26 @@ ponder.get("/sales", async (c) => {
   const limit = Number(c.req.query("limit") || 20);
   const offset = Number(c.req.query("offset") || 0);
 
-  const sales = await c.db
+  const salesData = await c.db
     .select()
     .from(sale)
     .orderBy(desc(sale.timestamp))
     .limit(limit)
     .offset(offset);
 
-  return c.json({ sales, limit, offset });
+  return c.json({ sales: serialize(salesData), limit, offset });
 });
 
 // Get user stats and activity
 ponder.get("/users/:address", async (c) => {
   const address = c.req.param("address").toLowerCase() as `0x${string}`;
 
-  const stats = await c.db.find(userStats, { id: address });
+  // Get user stats
+  const [stats] = await c.db
+    .select()
+    .from(userStats)
+    .where(eq(userStats.id, address))
+    .limit(1);
 
   // Get tokens owned by user
   const ownedTokens = await c.db
@@ -116,7 +138,7 @@ ponder.get("/users/:address", async (c) => {
     .orderBy(desc(profitDistribution.timestamp))
     .limit(50);
 
-  return c.json({
+  return c.json(serialize({
     stats: stats || {
       id: address,
       tokensMinted: 0,
@@ -129,7 +151,7 @@ ponder.get("/users/:address", async (c) => {
     ownedTokens,
     mintedTokens,
     recentProfits: profits,
-  });
+  }));
 });
 
 // Get profit cascade history for a token
@@ -142,7 +164,7 @@ ponder.get("/tokens/:id/profits", async (c) => {
     .where(eq(profitDistribution.tokenId, BigInt(tokenId)))
     .orderBy(desc(profitDistribution.timestamp));
 
-  return c.json({ profits });
+  return c.json({ profits: serialize(profits) });
 });
 
 // Get marketplace stats

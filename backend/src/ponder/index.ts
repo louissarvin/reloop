@@ -1,5 +1,4 @@
 import { ponder } from "@/generated";
-import { eq } from "@ponder/core";
 import {
   token,
   listing,
@@ -55,12 +54,12 @@ ponder.on("ReLoopRWA:TokenMinted", async ({ event, context }) => {
     console.error("Error fetching tokenURI:", e);
   }
 
-  // Create token record
+  // Create token record (lowercase addresses for consistent querying)
   await context.db.insert(token).values({
     id: tokenId.toString(),
     tokenId,
-    minter,
-    owner: minter,
+    minter: minter.toLowerCase() as `0x${string}`,
+    owner: minter.toLowerCase() as `0x${string}`,
     tokenUri,
     depth: Number(depth),
     profitSplitsBps: JSON.stringify(profitSplitsBps.map(Number)),
@@ -69,19 +68,20 @@ ponder.on("ReLoopRWA:TokenMinted", async ({ event, context }) => {
   });
 
   // Create initial owner history entry
+  const minterLower = minter.toLowerCase() as `0x${string}`;
   await context.db.insert(ownerHistory).values({
     id: `${tokenId}-0`,
     tokenId,
-    owner: minter,
+    owner: minterLower,
     purchasePrice: 0n, // Minting has no purchase price
     timestamp: event.block.timestamp,
     txHash: event.transaction.hash,
   });
 
   // Update user stats
-  const stats = await getOrCreateUserStats(context.db, minter);
+  const stats = await getOrCreateUserStats(context.db, minterLower);
   await context.db
-    .update(userStats, { id: minter })
+    .update(userStats, { id: minterLower })
     .set({ tokensMinted: stats.tokensMinted + 1 });
 });
 
@@ -94,26 +94,21 @@ ponder.on("ReLoopRWA:Transfer", async ({ event, context }) => {
     return;
   }
 
-  // Update token owner
-  await context.db.update(token, { id: tokenId.toString() }).set({ owner: to });
+  // Update token owner (lowercase for consistent querying)
+  await context.db.update(token, { id: tokenId.toString() }).set({
+    owner: to.toLowerCase() as `0x${string}`
+  });
 });
 
 // Handle owner history updates (from marketplace sales)
 ponder.on("ReLoopRWA:OwnerHistoryUpdated", async ({ event, context }) => {
   const { tokenId, newOwner, purchasePrice } = event.args;
 
-  // Count existing history entries for this token
-  const existingHistory = await context.db
-    .select()
-    .from(ownerHistory)
-    .where(eq(ownerHistory.tokenId, tokenId));
-
-  const index = existingHistory.length;
-
+  // Use transaction hash and log index for unique ID (no need to count)
   await context.db.insert(ownerHistory).values({
-    id: `${tokenId}-${index}`,
+    id: `${event.transaction.hash}-${event.log.logIndex}`,
     tokenId,
-    owner: newOwner,
+    owner: newOwner.toLowerCase() as `0x${string}`,
     purchasePrice,
     timestamp: event.block.timestamp,
     txHash: event.transaction.hash,
@@ -125,6 +120,7 @@ ponder.on("ReLoopRWA:OwnerHistoryUpdated", async ({ event, context }) => {
 // Handle listing creation
 ponder.on("ReLoopMarketplace:Listed", async ({ event, context }) => {
   const { tokenId, seller, price } = event.args;
+  const sellerLower = seller.toLowerCase() as `0x${string}`;
 
   // Upsert listing (update if exists, create if not)
   await context.db
@@ -132,14 +128,14 @@ ponder.on("ReLoopMarketplace:Listed", async ({ event, context }) => {
     .values({
       id: tokenId.toString(),
       tokenId,
-      seller,
+      seller: sellerLower,
       price,
       active: true,
       listedAt: event.block.timestamp,
       txHash: event.transaction.hash,
     })
     .onConflictDoUpdate({
-      seller,
+      seller: sellerLower,
       price,
       active: true,
       listedAt: event.block.timestamp,
@@ -157,6 +153,8 @@ ponder.on("ReLoopMarketplace:Delisted", async ({ event, context }) => {
 // Handle sales
 ponder.on("ReLoopMarketplace:Sale", async ({ event, context }) => {
   const { tokenId, seller, buyer, price, profit } = event.args;
+  const sellerLower = seller.toLowerCase() as `0x${string}`;
+  const buyerLower = buyer.toLowerCase() as `0x${string}`;
 
   const saleId = `${event.transaction.hash}-${event.log.logIndex}`;
 
@@ -164,8 +162,8 @@ ponder.on("ReLoopMarketplace:Sale", async ({ event, context }) => {
   await context.db.insert(sale).values({
     id: saleId,
     tokenId,
-    seller,
-    buyer,
+    seller: sellerLower,
+    buyer: buyerLower,
     price,
     profit,
     timestamp: event.block.timestamp,
@@ -177,15 +175,15 @@ ponder.on("ReLoopMarketplace:Sale", async ({ event, context }) => {
   await context.db.update(listing, { id: tokenId.toString() }).set({ active: false });
 
   // Update seller stats
-  const sellerStats = await getOrCreateUserStats(context.db, seller);
-  await context.db.update(userStats, { id: seller }).set({
+  const sellerStats = await getOrCreateUserStats(context.db, sellerLower);
+  await context.db.update(userStats, { id: sellerLower }).set({
     tokensSold: sellerStats.tokensSold + 1,
     totalEarned: sellerStats.totalEarned + (price - profit),
   });
 
   // Update buyer stats
-  const buyerStats = await getOrCreateUserStats(context.db, buyer);
-  await context.db.update(userStats, { id: buyer }).set({
+  const buyerStats = await getOrCreateUserStats(context.db, buyerLower);
+  await context.db.update(userStats, { id: buyerLower }).set({
     tokensBought: buyerStats.tokensBought + 1,
     totalSpent: buyerStats.totalSpent + price,
   });
@@ -194,12 +192,13 @@ ponder.on("ReLoopMarketplace:Sale", async ({ event, context }) => {
 // Handle profit distribution (cascade payments)
 ponder.on("ReLoopMarketplace:ProfitDistributed", async ({ event, context }) => {
   const { tokenId, recipient, amount, generation } = event.args;
+  const recipientLower = recipient.toLowerCase() as `0x${string}`;
 
   await context.db.insert(profitDistribution).values({
     id: `${event.transaction.hash}-${event.log.logIndex}`,
     tokenId,
     saleId: null, // Will be linked if we can find the sale
-    recipient,
+    recipient: recipientLower,
     amount,
     generation: Number(generation),
     timestamp: event.block.timestamp,
@@ -207,8 +206,8 @@ ponder.on("ReLoopMarketplace:ProfitDistributed", async ({ event, context }) => {
   });
 
   // Update recipient stats
-  const stats = await getOrCreateUserStats(context.db, recipient);
-  await context.db.update(userStats, { id: recipient }).set({
+  const stats = await getOrCreateUserStats(context.db, recipientLower);
+  await context.db.update(userStats, { id: recipientLower }).set({
     profitReceived: stats.profitReceived + amount,
   });
 });
