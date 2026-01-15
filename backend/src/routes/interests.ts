@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { db } from '../services/database';
+import { sql } from '../services/database';
 import { sendBuyerInterestEmail } from '../services/email';
 import type { Interest, CreateInterestInput, SellerPreferences, InterestStats } from '../types/interest';
 
@@ -46,21 +46,10 @@ interestRoutes.post('/', async (c) => {
     const createdAt = Date.now();
 
     // Insert interest
-    const stmt = db.prepare(`
+    await sql`
       INSERT INTO interests (id, token_id, seller_address, buyer_email, buyer_phone, buyer_address, message, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    stmt.run(
-      id,
-      body.tokenId,
-      body.sellerAddress.toLowerCase(),
-      body.buyerEmail || null,
-      body.buyerPhone || null,
-      body.buyerAddress?.toLowerCase() || null,
-      body.message || null,
-      createdAt
-    );
+      VALUES (${id}, ${body.tokenId}, ${body.sellerAddress.toLowerCase()}, ${body.buyerEmail || null}, ${body.buyerPhone || null}, ${body.buyerAddress?.toLowerCase() || null}, ${body.message || null}, ${createdAt})
+    `;
 
     // Send email to BUYER with seller's contact info
     let notificationSent = false;
@@ -83,7 +72,7 @@ interestRoutes.post('/', async (c) => {
 
       // Update notification status
       if (notificationSent) {
-        db.prepare('UPDATE interests SET notification_sent = 1 WHERE id = ?').run(id);
+        await sql`UPDATE interests SET notification_sent = 1 WHERE id = ${id}`;
       }
     }
 
@@ -106,11 +95,11 @@ interestRoutes.get('/seller/:address', async (c) => {
   try {
     const address = c.req.param('address').toLowerCase();
 
-    const interests = db.prepare(`
+    const interests = await sql<Interest[]>`
       SELECT * FROM interests
-      WHERE seller_address = ?
+      WHERE seller_address = ${address}
       ORDER BY created_at DESC
-    `).all(address) as Interest[];
+    `;
 
     return c.json({ success: true, interests });
   } catch (error) {
@@ -124,11 +113,11 @@ interestRoutes.get('/token/:tokenId', async (c) => {
   try {
     const tokenId = c.req.param('tokenId');
 
-    const interests = db.prepare(`
+    const interests = await sql<Interest[]>`
       SELECT * FROM interests
-      WHERE token_id = ?
+      WHERE token_id = ${tokenId}
       ORDER BY created_at DESC
-    `).all(tokenId) as Interest[];
+    `;
 
     return c.json({ success: true, interests });
   } catch (error) {
@@ -143,15 +132,15 @@ interestRoutes.get('/stats/:address', async (c) => {
     const address = c.req.param('address').toLowerCase();
     const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
 
-    const result = db.prepare(`
+    const result = await sql<InterestStats[]>`
       SELECT
-        COUNT(*) as total,
-        COUNT(CASE WHEN created_at > ? THEN 1 END) as last24h
+        COUNT(*)::int as total,
+        COUNT(CASE WHEN created_at > ${oneDayAgo} THEN 1 END)::int as last24h
       FROM interests
-      WHERE seller_address = ?
-    `).get(oneDayAgo, address) as InterestStats;
+      WHERE seller_address = ${address}
+    `;
 
-    return c.json({ success: true, stats: result });
+    return c.json({ success: true, stats: result[0] || { total: 0, last24h: 0 } });
   } catch (error) {
     console.error('Error fetching interest stats:', error);
     return c.json({ success: false, error: 'Internal server error' }, 500);
@@ -167,21 +156,14 @@ interestRoutes.post('/preferences', async (c) => {
       return c.json({ success: false, error: 'Address required' }, 400);
     }
 
-    const stmt = db.prepare(`
+    await sql`
       INSERT INTO seller_preferences (address, notification_email, email_notifications_enabled, updated_at)
-      VALUES (?, ?, ?, ?)
+      VALUES (${address.toLowerCase()}, ${notificationEmail || null}, ${emailNotificationsEnabled !== false ? 1 : 0}, ${Date.now()})
       ON CONFLICT(address) DO UPDATE SET
-        notification_email = excluded.notification_email,
-        email_notifications_enabled = excluded.email_notifications_enabled,
-        updated_at = excluded.updated_at
-    `);
-
-    stmt.run(
-      address.toLowerCase(),
-      notificationEmail || null,
-      emailNotificationsEnabled !== false ? 1 : 0,
-      Date.now()
-    );
+        notification_email = EXCLUDED.notification_email,
+        email_notifications_enabled = EXCLUDED.email_notifications_enabled,
+        updated_at = EXCLUDED.updated_at
+    `;
 
     return c.json({ success: true });
   } catch (error) {
@@ -195,11 +177,11 @@ interestRoutes.get('/preferences/:address', async (c) => {
   try {
     const address = c.req.param('address').toLowerCase();
 
-    const prefs = db.prepare(`
-      SELECT * FROM seller_preferences WHERE address = ?
-    `).get(address) as SellerPreferences | undefined;
+    const result = await sql<SellerPreferences[]>`
+      SELECT * FROM seller_preferences WHERE address = ${address}
+    `;
 
-    return c.json({ success: true, preferences: prefs || null });
+    return c.json({ success: true, preferences: result[0] || null });
   } catch (error) {
     console.error('Error fetching preferences:', error);
     return c.json({ success: false, error: 'Internal server error' }, 500);
