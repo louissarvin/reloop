@@ -30,7 +30,8 @@ export default {
         border: "#E5E7EB",
       },
       fontFamily: {
-        sans: ['Inter', 'sans-serif'],
+        sans: ['Satoshi', 'system-ui', 'sans-serif'],
+        mono: ['Fira Code', 'Consolas', 'monospace'],
       },
     },
   },

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAccount } from 'wagmi';
+import { motion } from 'framer-motion';
 import {
   ArrowRight,
   ShieldCheck,
@@ -167,6 +168,25 @@ export function Home() {
   const projectedEarnings = calculateEarnings();
   const totalEarnings = projectedEarnings.reduce((a, b) => a + b, 0);
 
+  // Animation variants
+  const fadeInUp = {
+    hidden: { opacity: 0, y: 30 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: 'easeOut' } }
+  };
+
+  const staggerContainer = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { staggerChildren: 0.1, delayChildren: 0.2 }
+    }
+  };
+
+  const scaleIn = {
+    hidden: { opacity: 0, scale: 0.9 },
+    visible: { opacity: 1, scale: 1, transition: { duration: 0.5 } }
+  };
+
   return (
     <div className="flex flex-col min-h-screen">
       {/* Hero Section */}
@@ -174,25 +194,42 @@ export function Home() {
         <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-[#232D3F] rounded-full blur-[120px] opacity-50 translate-x-1/3 -translate-y-1/4 pointer-events-none" />
 
         <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center relative z-10">
-          <div className="space-y-8">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-white/20 text-sm backdrop-blur-sm animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <motion.div
+            className="space-y-8"
+            initial="hidden"
+            animate="visible"
+            variants={staggerContainer}
+          >
+            <motion.div
+              variants={fadeInUp}
+              className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-white/20 text-sm backdrop-blur-sm"
+            >
               <span className="w-2 h-2 rounded-full bg-[#008170] animate-pulse" />
-              <span className="font-medium text-[#008170]">Live On Mantle</span>
-            </div>
+              <span className="font-medium text-[#008170]">Live On Mantle Network</span>
+            </motion.div>
 
-            <h1 className="text-5xl sm:text-7xl font-bold tracking-tight leading-[1.1]">
+            <motion.h1
+              variants={fadeInUp}
+              className="text-5xl sm:text-7xl font-bold tracking-tight leading-[1.1]"
+            >
               Buy Cars That <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#008170] to-[#005B41]">
                 Pay You Back.
               </span>
-            </h1>
+            </motion.h1>
 
-            <p className="text-xl text-gray-400 max-w-lg leading-relaxed">
+            <motion.p
+              variants={fadeInUp}
+              className="text-xl text-gray-400 max-w-lg leading-relaxed"
+            >
               The first marketplace where ownership history pays dividends.
               Earn a share of the sale price every time your car is resold.
-            </p>
+            </motion.p>
 
-            <div className="flex flex-wrap items-center gap-4 pt-4">
+            <motion.div
+              variants={fadeInUp}
+              className="flex flex-wrap items-center gap-4 pt-4"
+            >
               <Link
                 to="/marketplace"
                 className="bg-white text-black px-8 py-4 rounded-xl font-bold hover:bg-gray-200 transition-colors flex items-center gap-2"
@@ -205,10 +242,15 @@ export function Home() {
               >
                 Sell Your Car
               </Link>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
 
-          <div className="relative hidden lg:block group">
+          <motion.div
+            className="relative hidden lg:block group"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.8, delay: 0.3 }}
+          >
              <div className="relative z-10 rounded-3xl overflow-hidden border border-white/10 shadow-2xl shadow-black/50 aspect-[4/3]">
                {heroSlides.map((slide, index) => (
                  <div
@@ -264,46 +306,45 @@ export function Home() {
              </div>
 
              <div className="absolute inset-0 -z-10 border-2 border-[#008170]/30 rounded-3xl rotate-6 scale-105 transition-transform duration-1000 group-hover:rotate-3 group-hover:scale-100" />
-          </div>
+          </motion.div>
         </div>
       </section>
 
       {/* Live Stats Banner */}
       <section className="bg-gradient-to-r from-[#008170] to-[#005B41] text-white py-6">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-            <div>
-              <div className="text-3xl font-bold font-mono">
-                {stats ? formatPrice(stats.totalVolume, 6) : '0'}
-              </div>
-              <div className="text-sm text-white/80">Total Volume (USDC)</div>
-            </div>
-            <div>
-              <div className="text-3xl font-bold font-mono">
-                {stats ? formatPrice(stats.totalProfitDistributed, 6) : '0'}
-              </div>
-              <div className="text-sm text-white/80">Profit Distributed</div>
-            </div>
-            <div>
-              <div className="text-3xl font-bold font-mono">
-                {stats?.totalSales || 0}
-              </div>
-              <div className="text-sm text-white/80">Total Sales</div>
-            </div>
-            <div>
-              <div className="text-3xl font-bold font-mono">
-                {stats?.activeListings || 0}
-              </div>
-              <div className="text-sm text-white/80">Active Listings</div>
-            </div>
-          </div>
+          <motion.div
+            className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-50px" }}
+            variants={staggerContainer}
+          >
+            {[
+              { value: stats ? formatPrice(stats.totalVolume, 6) : '0', label: 'Total Volume (USDC)' },
+              { value: stats ? formatPrice(stats.totalProfitDistributed, 6) : '0', label: 'Profit Distributed' },
+              { value: stats?.totalSales || 0, label: 'Total Sales' },
+              { value: stats?.activeListings || 0, label: 'Active Listings' },
+            ].map((stat, i) => (
+              <motion.div key={i} variants={fadeInUp}>
+                <div className="text-3xl font-bold font-mono">{stat.value}</div>
+                <div className="text-sm text-white/80">{stat.label}</div>
+              </motion.div>
+            ))}
+          </motion.div>
         </div>
       </section>
 
       {/* Trust Bar */}
       <section className="border-b border-border bg-white">
-        <div className="max-w-7xl mx-auto px-6 py-12 grid grid-cols-1 md:grid-cols-3 gap-8">
-           <div className="flex items-center gap-4">
+        <motion.div
+          className="max-w-7xl mx-auto px-6 py-12 grid grid-cols-1 md:grid-cols-3 gap-8"
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-50px" }}
+          variants={staggerContainer}
+        >
+           <motion.div variants={fadeInUp} className="flex items-center gap-4">
              <div className="w-12 h-12 rounded-full bg-[#005B41]/10 flex items-center justify-center text-[#005B41]">
                <RefreshCw size={24} />
              </div>
@@ -311,9 +352,9 @@ export function Home() {
                <div className="font-bold text-lg text-foreground">Profit Loop Algorithm</div>
                <div className="text-sm text-gray-500">Auto-distribution to 5 generations</div>
              </div>
-           </div>
+           </motion.div>
 
-           <div className="flex items-center gap-4">
+           <motion.div variants={fadeInUp} className="flex items-center gap-4">
              <div className="w-12 h-12 rounded-full bg-[#005B41]/10 flex items-center justify-center text-[#005B41]">
                <ShieldCheck size={24} />
              </div>
@@ -321,9 +362,9 @@ export function Home() {
                <div className="font-bold text-lg text-foreground">Verified Ownership</div>
                <div className="text-sm text-gray-500">Blockchain-backed history</div>
              </div>
-           </div>
+           </motion.div>
 
-           <div className="flex items-center gap-4">
+           <motion.div variants={fadeInUp} className="flex items-center gap-4">
              <div className="w-12 h-12 rounded-full bg-[#005B41]/10 flex items-center justify-center text-[#005B41]">
                <BadgeDollarSign size={24} />
              </div>
@@ -331,23 +372,39 @@ export function Home() {
                <div className="font-bold text-lg text-foreground">Instant Payouts</div>
                <div className="text-sm text-gray-500">USDC sent directly to your wallet</div>
              </div>
-           </div>
-        </div>
+           </motion.div>
+        </motion.div>
       </section>
 
       {/* How It Works */}
       <section className="py-20 px-6 bg-gray-50">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
+          <motion.div
+            className="text-center mb-16"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={fadeInUp}
+          >
             <h2 className="text-4xl font-bold text-foreground mb-4">How the Profit Loop Works</h2>
             <p className="text-xl text-gray-500 max-w-2xl mx-auto">
               Every car you own becomes a passive income asset. Here's how you earn from every future resale.
             </p>
-          </div>
+          </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <motion.div
+            className="grid grid-cols-1 md:grid-cols-3 gap-8"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-50px" }}
+            variants={staggerContainer}
+          >
             {/* Step 1 */}
-            <div className="relative bg-white rounded-2xl p-8 shadow-sm border border-border">
+            <motion.div
+              variants={fadeInUp}
+              whileHover={{ y: -8, transition: { duration: 0.2 } }}
+              className="relative bg-white rounded-2xl p-8 shadow-sm border border-border"
+            >
               <div className="absolute -top-4 left-8 w-8 h-8 bg-[#008170] text-white rounded-full flex items-center justify-center font-bold">
                 1
               </div>
@@ -358,10 +415,14 @@ export function Home() {
               <p className="text-gray-600">
                 Purchase a car NFT from the marketplace or mint a new one. You're now part of the ownership chain.
               </p>
-            </div>
+            </motion.div>
 
             {/* Step 2 */}
-            <div className="relative bg-white rounded-2xl p-8 shadow-sm border border-border">
+            <motion.div
+              variants={fadeInUp}
+              whileHover={{ y: -8, transition: { duration: 0.2 } }}
+              className="relative bg-white rounded-2xl p-8 shadow-sm border border-border"
+            >
               <div className="absolute -top-4 left-8 w-8 h-8 bg-[#008170] text-white rounded-full flex items-center justify-center font-bold">
                 2
               </div>
@@ -372,10 +433,14 @@ export function Home() {
               <p className="text-gray-600">
                 List your car at any price. When it sells, you keep 100% of the sale profit minus a small platform fee.
               </p>
-            </div>
+            </motion.div>
 
             {/* Step 3 */}
-            <div className="relative bg-white rounded-2xl p-8 shadow-sm border border-border">
+            <motion.div
+              variants={fadeInUp}
+              whileHover={{ y: -8, transition: { duration: 0.2 } }}
+              className="relative bg-white rounded-2xl p-8 shadow-sm border border-border"
+            >
               <div className="absolute -top-4 left-8 w-8 h-8 bg-[#008170] text-white rounded-full flex items-center justify-center font-bold">
                 3
               </div>
@@ -386,26 +451,37 @@ export function Home() {
               <p className="text-gray-600">
                 Every time the car is resold (up to 5 generations), you automatically receive a share of the profit in USDC.
               </p>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         </div>
       </section>
 
       {/* Profit Calculator */}
       <section className="py-20 px-6 bg-white">
         <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-12">
+          <motion.div
+            className="text-center mb-12"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={fadeInUp}
+          >
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#008170]/10 text-[#008170] text-sm font-medium mb-4">
-              <Calculator size={16} />
               Earnings Calculator
             </div>
             <h2 className="text-4xl font-bold text-foreground mb-4">See Your Potential Earnings</h2>
             <p className="text-xl text-gray-500">
               Enter a purchase price to see how much you could earn from future resales
             </p>
-          </div>
+          </motion.div>
 
-          <div className="bg-gray-50 rounded-2xl p-8 border border-border">
+          <motion.div
+            className="bg-gray-50 rounded-2xl p-8 border border-border"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={scaleIn}
+          >
             <div className="mb-8">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Your Purchase Price (USDC)
@@ -447,29 +523,42 @@ export function Home() {
                 From a ${parseFloat(calcPrice || '0').toLocaleString()} investment
               </div>
             </div>
-          </div>
+          </motion.div>
         </div>
       </section>
 
-      
+
 
       {/* Recent Activity */}
       {recentSales.length > 0 && (
         <section className="py-20 px-6 bg-white">
           <div className="max-w-4xl mx-auto">
-            <div className="text-center mb-12">
+            <motion.div
+              className="text-center mb-12"
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+              variants={fadeInUp}
+            >
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-100 text-green-700 text-sm font-medium mb-4">
-                <Zap size={16} />
                 Live Activity
               </div>
-              <h2 className="text-4xl font-bold text-foreground mb-4">Recent Sales</h2>
+              <h2 className="text-4xl font-bold text-foreground mb-2">Recent Sales</h2>
               <p className="text-gray-500">Real transactions happening on ReLoop</p>
-            </div>
+            </motion.div>
 
-            <div className="space-y-4">
+            <motion.div
+              className="space-y-4"
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+              variants={staggerContainer}
+            >
               {recentSales.map((sale) => (
-                <div
+                <motion.div
                   key={sale.id}
+                  variants={fadeInUp}
+                  whileHover={{ scale: 1.02, transition: { duration: 0.2 } }}
                   className="flex items-center justify-between bg-gray-50 rounded-xl p-4 border border-border"
                 >
                   <div className="flex items-center gap-4">
@@ -493,23 +582,38 @@ export function Home() {
                       </div>
                     )}
                   </div>
-                </div>
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           </div>
         </section>
       )}
 
       {/* Final CTA */}
       <section className="py-24 px-6 bg-[#0F0F0F] text-white">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-4xl sm:text-5xl font-bold mb-6">
+        <motion.div
+          className="max-w-4xl mx-auto text-center"
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          variants={staggerContainer}
+        >
+          <motion.h2
+            variants={fadeInUp}
+            className="text-4xl sm:text-5xl font-bold mb-6"
+          >
             Ready to Start Earning?
-          </h2>
-          <p className="text-xl text-gray-400 mb-10 max-w-2xl mx-auto">
+          </motion.h2>
+          <motion.p
+            variants={fadeInUp}
+            className="text-xl text-gray-400 mb-10 max-w-2xl mx-auto"
+          >
             Join the future of car ownership. Every sale creates value for everyone in the chain.
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-4">
+          </motion.p>
+          <motion.div
+            variants={fadeInUp}
+            className="flex flex-wrap items-center justify-center gap-4"
+          >
             <Link
               to="/marketplace"
               className="bg-white text-black px-8 py-4 rounded-xl font-bold hover:bg-gray-200 transition-colors flex items-center gap-2"
@@ -531,8 +635,8 @@ export function Home() {
                 Connect Wallet
               </Link>
             )}
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       </section>
     </div>
   );

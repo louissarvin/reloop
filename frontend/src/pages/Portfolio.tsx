@@ -1,16 +1,19 @@
 import { useEffect, useState } from 'react';
 import { useAccount } from 'wagmi';
 import { ConnectKitButton } from 'connectkit';
+import { motion, AnimatePresence } from 'framer-motion';
 import { BadgeDollarSign, CarFront, Wallet, Loader2, Tag, ExternalLink, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import {
   fetchUserProfile,
   fetchTokenMetadata,
+  fetchTokenDetail,
   formatIpfsUrl,
   formatPrice,
   formatAddress,
   type Token,
   type UserProfileResponse,
+  type OwnerHistory,
 } from '../services/ponder';
 import {
   useUSDCBalance,
@@ -29,14 +32,42 @@ interface TokenMetadata {
 interface ListModalProps {
   token: Token;
   metadata: TokenMetadata | null;
+  ownerHistory: OwnerHistory[];
   onClose: () => void;
   onSuccess: () => void;
 }
 
-function ListModal({ token, metadata, onClose, onSuccess }: ListModalProps) {
-  // Pre-fill price from metadata if available
+// Animation variants
+const fadeInUp = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5 } }
+};
+
+const staggerContainer = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.1, delayChildren: 0.1 }
+  }
+};
+
+const cardVariant = {
+  hidden: { opacity: 0, y: 30, scale: 0.95 },
+  visible: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.4 } }
+};
+
+function ListModal({ token, metadata, ownerHistory, onClose, onSuccess }: ListModalProps) {
+  // Get original mint price from metadata
   const originalPrice = metadata?.attributes?.find(a => a.trait_type === 'Price')?.value;
-  const [price, setPrice] = useState(originalPrice ? String(originalPrice) : '');
+
+  // Get last sale price from owner history
+  const lastOwnerRecord = ownerHistory.length > 0 ? ownerHistory[ownerHistory.length - 1] : null;
+  const lastSalePrice = lastOwnerRecord?.purchasePrice && lastOwnerRecord.purchasePrice !== '0'
+    ? formatPrice(lastOwnerRecord.purchasePrice, 6)
+    : null;
+
+  // Pre-fill with last sale price if available, otherwise original price
+  const [price, setPrice] = useState(lastSalePrice || (originalPrice ? String(originalPrice) : ''));
   const [step, setStep] = useState<'input' | 'approving' | 'listing'>('input');
 
   const { approve, isPending: isApproving, isSuccess: approveSuccess } = useApproveNFT();
@@ -70,8 +101,19 @@ function ListModal({ token, metadata, onClose, onSuccess }: ListModalProps) {
   const isLoading = isApproving || isListing;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl max-w-md w-full p-6">
+    <motion.div
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
+      <motion.div
+        className="bg-white rounded-2xl max-w-md w-full p-6"
+        initial={{ scale: 0.9, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.9, opacity: 0, y: 20 }}
+        transition={{ type: "spring", damping: 25, stiffness: 300 }}
+      >
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-xl font-bold">List for Sale</h3>
           <button onClick={onClose} disabled={isLoading} className="p-1 hover:bg-gray-100 rounded-full">
@@ -107,11 +149,18 @@ function ListModal({ token, metadata, onClose, onSuccess }: ListModalProps) {
               disabled={isLoading}
               required
             />
-            {originalPrice && (
-              <p className="text-xs text-gray-500 mt-2">
-                Original listing price: ${originalPrice} USDC
-              </p>
-            )}
+            <div className="mt-3 space-y-1">
+              {originalPrice && (
+                <p className="text-xs text-gray-500">
+                  Original mint price: <span className="font-medium">${Number(originalPrice).toLocaleString()} USDC</span>
+                </p>
+              )}
+              {lastSalePrice && (
+                <p className="text-xs text-green-600">
+                  Last sold for: <span className="font-medium">${lastSalePrice} USDC</span>
+                </p>
+              )}
+            </div>
           </div>
 
           {listError && (
@@ -145,8 +194,8 @@ function ListModal({ token, metadata, onClose, onSuccess }: ListModalProps) {
             )}
           </button>
         </form>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -158,6 +207,8 @@ export function Portfolio() {
   const [tokenMetadata, setTokenMetadata] = useState<Record<string, TokenMetadata | null>>({});
   const [loading, setLoading] = useState(true);
   const [listingToken, setListingToken] = useState<Token | null>(null);
+  const [listingOwnerHistory, setListingOwnerHistory] = useState<OwnerHistory[]>([]);
+  const [loadingTokenId, setLoadingTokenId] = useState<string | null>(null);
 
   const loadProfile = async () => {
     if (!address) return;
@@ -196,10 +247,20 @@ export function Portfolio() {
   if (!isConnected) {
     return (
       <div className="max-w-2xl mx-auto px-6 py-12">
-        <div className="bg-surface rounded-2xl border border-border p-12 text-center">
-          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+        <motion.div
+          className="bg-surface rounded-2xl border border-border p-12 text-center"
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <motion.div
+            className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6"
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+          >
             <Wallet className="w-8 h-8 text-gray-400" />
-          </div>
+          </motion.div>
           <h1 className="text-2xl font-bold text-foreground mb-3">Connect Your Wallet</h1>
           <p className="text-gray-500 mb-8 max-w-md mx-auto">
             Connect your wallet to view your garage, NFTs, and earnings.
@@ -215,7 +276,7 @@ export function Portfolio() {
               </button>
             )}
           </ConnectKitButton.Custom>
-        </div>
+        </motion.div>
       </div>
     );
   }
@@ -235,41 +296,72 @@ export function Portfolio() {
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-12">
-      <div className="flex items-center justify-between mb-8">
+      <motion.div
+        className="flex items-center justify-between mb-8"
+        initial="hidden"
+        animate="visible"
+        variants={fadeInUp}
+      >
         <h1 className="text-3xl font-bold">My Garage</h1>
-      </div>
+      </motion.div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
-        <div className="bg-surface p-6 rounded-2xl border border-border shadow-sm">
+      <motion.div
+        className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12"
+        initial="hidden"
+        animate="visible"
+        variants={staggerContainer}
+      >
+        <motion.div
+          variants={cardVariant}
+          whileHover={{ y: -4, transition: { duration: 0.2 } }}
+          className="bg-surface p-6 rounded-2xl border border-border shadow-sm"
+        >
           <div className="text-gray-500 text-sm font-medium mb-1">USDC Balance</div>
           <div className="text-3xl font-mono font-bold">${formattedBalance}</div>
-        </div>
+        </motion.div>
 
-        <div className="bg-surface p-6 rounded-2xl border border-border shadow-sm">
+        <motion.div
+          variants={cardVariant}
+          whileHover={{ y: -4, transition: { duration: 0.2 } }}
+          className="bg-surface p-6 rounded-2xl border border-border shadow-sm"
+        >
           <div className="text-gray-500 text-sm font-medium mb-1">Loop Earnings</div>
           <div className="text-3xl font-mono font-bold text-accent flex items-center gap-2">
             ${formattedEarnings}
           </div>
-        </div>
+        </motion.div>
 
-        <div className="bg-surface p-6 rounded-2xl border border-border shadow-sm">
+        <motion.div
+          variants={cardVariant}
+          whileHover={{ y: -4, transition: { duration: 0.2 } }}
+          className="bg-surface p-6 rounded-2xl border border-border shadow-sm"
+        >
           <div className="text-gray-500 text-sm font-medium mb-1">Owned NFTs</div>
           <div className="text-3xl font-mono font-bold flex items-center gap-2">
             {profile?.ownedTokens.length || 0}
           </div>
-        </div>
+        </motion.div>
 
-        <div className="bg-surface p-6 rounded-2xl border border-border shadow-sm">
+        <motion.div
+          variants={cardVariant}
+          whileHover={{ y: -4, transition: { duration: 0.2 } }}
+          className="bg-surface p-6 rounded-2xl border border-border shadow-sm"
+        >
           <div className="text-gray-500 text-sm font-medium mb-1">Total Minted</div>
           <div className="text-3xl font-mono font-bold">
             {profile?.stats.tokensMinted || 0}
           </div>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
 
       {/* Owned NFTs */}
-      <div className="flex items-center justify-between mb-4">
+      <motion.div
+        className="flex items-center justify-between mb-4"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.3 }}
+      >
         <h2 className="text-xl font-bold">My NFTs</h2>
         <Link
           to="/create"
@@ -277,10 +369,15 @@ export function Portfolio() {
         >
           + Mint New
         </Link>
-      </div>
+      </motion.div>
 
       {profile?.ownedTokens.length === 0 ? (
-        <div className="bg-surface rounded-2xl border border-border p-12 text-center text-gray-500">
+        <motion.div
+          className="bg-surface rounded-2xl border border-border p-12 text-center text-gray-500"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+        >
           <CarFront className="mx-auto mb-4 text-gray-300" size={48} />
           <p className="font-medium mb-2">No NFTs yet</p>
           <p className="text-sm mb-6">Mint your first car NFT or buy one from the marketplace.</p>
@@ -298,14 +395,21 @@ export function Portfolio() {
               Browse Marketplace
             </Link>
           </div>
-        </div>
+        </motion.div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <motion.div
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+          initial="hidden"
+          animate="visible"
+          variants={staggerContainer}
+        >
           {profile?.ownedTokens.map((token) => {
             const meta = tokenMetadata[token.id];
             return (
-              <div
+              <motion.div
                 key={token.id}
+                variants={cardVariant}
+                whileHover={{ y: -8, transition: { duration: 0.2 } }}
                 className="bg-surface rounded-xl overflow-hidden border border-border"
               >
                 <div className="aspect-[16/10] overflow-hidden bg-gray-100">
@@ -329,10 +433,30 @@ export function Portfolio() {
 
                   <div className="flex gap-2">
                     <button
-                      onClick={() => setListingToken(token)}
-                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-foreground text-background rounded-lg font-medium hover:bg-gray-800 transition-colors text-sm"
+                      onClick={async () => {
+                        setLoadingTokenId(token.tokenId);
+                        // Fetch owner history first, then show the modal
+                        try {
+                          const detail = await fetchTokenDetail(token.tokenId);
+                          setListingOwnerHistory(detail.ownerHistory || []);
+                        } catch (err) {
+                          console.error('Error fetching token detail:', err);
+                          setListingOwnerHistory([]);
+                        }
+                        setListingToken(token);
+                        setLoadingTokenId(null);
+                      }}
+                      disabled={loadingTokenId === token.tokenId}
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-foreground text-background rounded-lg font-medium hover:bg-gray-800 transition-colors text-sm disabled:opacity-50"
                     >
-                      List for Sale
+                      {loadingTokenId === token.tokenId ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Loading...
+                        </>
+                      ) : (
+                        'List for Sale'
+                      )}
                     </button>
                     <Link
                       to={`/asset/${token.tokenId}`}
@@ -342,15 +466,20 @@ export function Portfolio() {
                     </Link>
                   </div>
                 </div>
-              </div>
+              </motion.div>
             );
           })}
-        </div>
+        </motion.div>
       )}
 
       {/* Recent Profit Distributions */}
       {profile && profile.recentProfits.length > 0 && (
-        <div className="mt-12">
+        <motion.div
+          className="mt-12"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+        >
           <h2 className="text-xl font-bold mb-4">Recent Loop Earnings</h2>
           <div className="bg-surface rounded-xl border border-border overflow-hidden">
             <table className="w-full">
@@ -385,21 +514,28 @@ export function Portfolio() {
               </tbody>
             </table>
           </div>
-        </div>
+        </motion.div>
       )}
 
       {/* List Modal */}
-      {listingToken && (
-        <ListModal
-          token={listingToken}
-          metadata={tokenMetadata[listingToken.id]}
-          onClose={() => setListingToken(null)}
-          onSuccess={() => {
-            setListingToken(null);
-            loadProfile(); // Refresh data
-          }}
-        />
-      )}
+      <AnimatePresence>
+        {listingToken && (
+          <ListModal
+            token={listingToken}
+            metadata={tokenMetadata[listingToken.id]}
+            ownerHistory={listingOwnerHistory}
+            onClose={() => {
+              setListingToken(null);
+              setListingOwnerHistory([]);
+            }}
+            onSuccess={() => {
+              setListingToken(null);
+              setListingOwnerHistory([]);
+              loadProfile(); // Refresh data
+            }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

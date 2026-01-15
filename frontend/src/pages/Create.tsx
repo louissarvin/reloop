@@ -1,10 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
-import { Car, Wallet, Loader2, Image, X, ExternalLink, Tag, Share2, CheckCircle2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Car, Wallet, Loader2, Image, X, ExternalLink, Tag, Share2, CheckCircle2, Plus, Phone, Lock } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAccount } from 'wagmi';
 import { ConnectKitButton } from 'connectkit';
 import { useMintToken } from '../contracts';
 import { uploadNFT } from '../services/ipfs';
+import { encryptPhone } from '../services/contact';
+
+const MAX_IMAGES = 10;
 
 type MintStep = 'idle' | 'uploading' | 'confirming' | 'minting' | 'success' | 'error';
 
@@ -18,43 +22,69 @@ export function Create() {
     name: '',
     description: '',
     price: '',
+    phone: '',
     depth: 3,
     splits: [6, 4, 2]
   });
 
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [step, setStep] = useState<MintStep>('idle');
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
 
-    // Validate file type
     const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-    if (!allowedTypes.includes(file.type)) {
-      setUploadError('Invalid file type. Allowed: JPEG, PNG, WebP, GIF');
-      return;
+    const validFiles: File[] = [];
+    const newPreviews: string[] = [];
+
+    for (const file of files) {
+      // Check max limit
+      if (imageFiles.length + validFiles.length >= MAX_IMAGES) {
+        setUploadError(`Maximum ${MAX_IMAGES} images allowed`);
+        break;
+      }
+
+      // Validate file type
+      if (!allowedTypes.includes(file.type)) {
+        setUploadError('Invalid file type. Allowed: JPEG, PNG, WebP, GIF');
+        continue;
+      }
+
+      // Validate file size (max 10MB per image)
+      if (file.size > 10 * 1024 * 1024) {
+        setUploadError('File too large. Maximum size is 10MB per image');
+        continue;
+      }
+
+      validFiles.push(file);
+      newPreviews.push(URL.createObjectURL(file));
     }
 
-    // Validate file size (max 10MB)
-    if (file.size > 10 * 1024 * 1024) {
-      setUploadError('File too large. Maximum size is 10MB');
-      return;
+    if (validFiles.length > 0) {
+      setUploadError(null);
+      setImageFiles(prev => [...prev, ...validFiles]);
+      setImagePreviews(prev => [...prev, ...newPreviews]);
     }
 
-    setUploadError(null);
-    setImageFile(file);
-    setImagePreview(URL.createObjectURL(file));
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
-  const removeImage = () => {
-    setImageFile(null);
-    if (imagePreview) {
-      URL.revokeObjectURL(imagePreview);
-      setImagePreview(null);
-    }
+  const removeImage = (index: number) => {
+    URL.revokeObjectURL(imagePreviews[index]);
+    setImageFiles(prev => prev.filter((_, i) => i !== index));
+    setImagePreviews(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const removeAllImages = () => {
+    imagePreviews.forEach(url => URL.revokeObjectURL(url));
+    setImageFiles([]);
+    setImagePreviews([]);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -73,16 +103,19 @@ export function Create() {
 
   const totalSplit = formData.splits.reduce((a, b) => a + b, 0);
   const maxSplit = formData.depth * 4;
-  const isValid = totalSplit <= maxSplit && imageFile !== null;
+  const isValid = totalSplit <= maxSplit && imageFiles.length > 0 && formData.phone.length >= 10;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!address || !imageFile) return;
+    if (!address || imageFiles.length === 0) return;
 
     setUploadError(null);
     setStep('uploading');
 
-    // Step 1: Upload image and metadata to IPFS
+    // Encrypt phone number before storing
+    const encryptedPhone = encryptPhone(formData.phone);
+
+    // Step 1: Upload images and metadata to IPFS
     const attributes = [
       { trait_type: 'Price', value: formData.price },
       { trait_type: 'Depth', value: formData.depth },
@@ -92,10 +125,11 @@ export function Create() {
       }))
     ];
 
-    const uploadResult = await uploadNFT(imageFile, {
+    const uploadResult = await uploadNFT(imageFiles, {
       name: formData.name,
       description: formData.description,
       attributes,
+      encryptedPhone,
     });
 
     if (!uploadResult.success || !uploadResult.tokenUri) {
@@ -137,10 +171,20 @@ export function Create() {
   if (!isConnected) {
     return (
       <div className="max-w-2xl mx-auto px-6 py-12">
-        <div className="bg-surface rounded-2xl border border-border p-12 text-center">
-          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+        <motion.div
+          className="bg-surface rounded-2xl border border-border p-12 text-center"
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <motion.div
+            className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6"
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+          >
             <Wallet className="w-8 h-8 text-gray-400" />
-          </div>
+          </motion.div>
           <h1 className="text-2xl font-bold text-foreground mb-3">Connect Your Wallet</h1>
           <p className="text-gray-500 mb-8 max-w-md mx-auto">
             Connect your wallet to list your car on ReLoop and start earning from future resales.
@@ -156,19 +200,30 @@ export function Create() {
               </button>
             )}
           </ConnectKitButton.Custom>
-        </div>
+        </motion.div>
       </div>
     );
   }
 
   return (
     <div className="max-w-2xl mx-auto px-6 py-12">
-      <div className="text-center mb-10">
+      <motion.div
+        className="text-center mb-10"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
         <h1 className="text-3xl font-bold text-foreground mb-2">List Your Car</h1>
         <p className="text-gray-500">Enable the Resale Loop to earn from future sales.</p>
-      </div>
+      </motion.div>
 
-      <form onSubmit={handleSubmit} className="space-y-8 bg-surface p-8 rounded-2xl border border-border shadow-sm">
+      <motion.form
+        onSubmit={handleSubmit}
+        className="space-y-8 bg-surface p-8 rounded-2xl border border-border shadow-sm"
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.1 }}
+      >
 
         {/* Basic Info */}
         <div className="space-y-4">
@@ -217,9 +272,23 @@ export function Create() {
             </div>
           </div>
 
-          {/* Image Upload */}
+          {/* Image Upload - Multiple Images */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Car Photo</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-sm font-medium text-gray-700">
+                Car Photos ({imagePreviews.length}/{MAX_IMAGES})
+              </label>
+              {imagePreviews.length > 0 && (
+                <button
+                  type="button"
+                  onClick={removeAllImages}
+                  disabled={isLoading}
+                  className="text-xs text-red-500 hover:text-red-700 disabled:opacity-50"
+                >
+                  Remove all
+                </button>
+              )}
+            </div>
             <input
               ref={fileInputRef}
               type="file"
@@ -227,26 +296,76 @@ export function Create() {
               onChange={handleImageSelect}
               className="hidden"
               disabled={isLoading}
+              multiple
             />
 
-            {imagePreview ? (
-              <div className="relative rounded-xl overflow-hidden border border-gray-200">
-                <img
-                  src={imagePreview}
-                  alt="Preview"
-                  className="w-full h-48 object-cover"
-                />
-                <button
-                  type="button"
-                  onClick={removeImage}
-                  disabled={isLoading}
-                  className="absolute top-2 right-2 p-1.5 bg-white/90 hover:bg-white rounded-full shadow-md transition-colors disabled:opacity-50"
-                >
-                  <X size={16} className="text-gray-600" />
-                </button>
-                <div className="absolute bottom-2 left-2 px-2 py-1 bg-black/60 rounded text-xs text-white">
-                  {imageFile?.name}
+            {imagePreviews.length > 0 ? (
+              <div className="space-y-3">
+                {/* Main image (first one) */}
+                <div className="relative rounded-xl overflow-hidden border border-gray-200">
+                  <img
+                    src={imagePreviews[0]}
+                    alt="Main preview"
+                    className="w-full h-48 object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeImage(0)}
+                    disabled={isLoading}
+                    className="absolute top-2 right-2 p-1.5 bg-white/90 hover:bg-white rounded-full shadow-md transition-colors disabled:opacity-50"
+                  >
+                    <X size={16} className="text-gray-600" />
+                  </button>
+                  <div className="absolute bottom-2 left-2 px-2 py-1 bg-black/60 rounded text-xs text-white">
+                    Main Photo
+                  </div>
                 </div>
+
+                {/* Gallery grid */}
+                <div className="grid grid-cols-4 gap-2">
+                  <AnimatePresence>
+                    {imagePreviews.slice(1).map((preview, index) => (
+                      <motion.div
+                        key={preview}
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.8 }}
+                        className="relative aspect-square rounded-lg overflow-hidden border border-gray-200"
+                      >
+                        <img
+                          src={preview}
+                          alt={`Preview ${index + 2}`}
+                          className="w-full h-full object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeImage(index + 1)}
+                          disabled={isLoading}
+                          className="absolute top-1 right-1 p-1 bg-white/90 hover:bg-white rounded-full shadow-sm transition-colors disabled:opacity-50"
+                        >
+                          <X size={12} className="text-gray-600" />
+                        </button>
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+
+                  {/* Add more button */}
+                  {imagePreviews.length < MAX_IMAGES && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      onClick={() => !isLoading && fileInputRef.current?.click()}
+                      className="aspect-square rounded-lg border-2 border-dashed border-gray-200 flex flex-col items-center justify-center hover:bg-gray-50 hover:border-gray-300 transition-colors cursor-pointer"
+                    >
+                      <Plus size={20} className="text-gray-400" />
+                      <span className="text-xs text-gray-400 mt-1">Add</span>
+                    </motion.div>
+                  )}
+                </div>
+
+                <p className="text-xs text-gray-500">
+                  First photo will be the main listing image. Add up to {MAX_IMAGES} photos to show all details.
+                </p>
               </div>
             ) : (
               <div
@@ -254,10 +373,37 @@ export function Create() {
                 className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center hover:bg-gray-50 hover:border-gray-300 transition-colors cursor-pointer"
               >
                 <Image className="mx-auto text-gray-400 mb-2" size={32} />
-                <span className="text-sm text-gray-500 block">Click to upload car photo</span>
-                <span className="text-xs text-gray-400 mt-1 block">JPEG, PNG, WebP, GIF (max 10MB)</span>
+                <span className="text-sm text-gray-500 block">Click to upload car photos</span>
+                <span className="text-xs text-gray-400 mt-1 block">
+                  Up to {MAX_IMAGES} images - JPEG, PNG, WebP, GIF (max 10MB each)
+                </span>
               </div>
             )}
+          </div>
+
+          {/* Phone Number */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              <span className="flex items-center gap-2">
+                <Phone size={14} />
+                Contact Phone Number
+                <span className="inline-flex items-center gap-1 text-xs text-gray-400 font-normal">
+                  <Lock size={10} /> Encrypted
+                </span>
+              </span>
+            </label>
+            <input
+              type="tel"
+              className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-foreground focus:outline-none transition-all"
+              placeholder="+1 (555) 123-4567"
+              value={formData.phone}
+              onChange={e => setFormData({...formData, phone: e.target.value})}
+              required
+              disabled={isLoading}
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Your phone number is encrypted and only shared with verified interested buyers.
+            </p>
           </div>
         </div>
 
@@ -408,12 +554,16 @@ export function Create() {
           )}
           {isSuccess && 'Minted Successfully!'}
           {step === 'idle' && !isSuccess && (
-            imageFile ? 'Create Listing' : 'Upload Photo to Continue'
+            imageFiles.length > 0 && formData.phone.length >= 10
+              ? 'Create Listing'
+              : imageFiles.length === 0
+                ? 'Upload Photos to Continue'
+                : 'Add Phone Number to Continue'
           )}
           {step === 'error' && 'Try Again'}
         </button>
 
-      </form>
+      </motion.form>
     </div>
   );
 }

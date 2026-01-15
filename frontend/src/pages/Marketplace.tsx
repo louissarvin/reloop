@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useAccount } from 'wagmi';
 import { Link } from 'react-router-dom';
-import { Loader2, Search, SlidersHorizontal, ArrowLeftRight, CheckCircle2, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Loader2, Search, SlidersHorizontal, ArrowLeftRight, CheckCircle2, X, Heart, Mail, Phone } from 'lucide-react';
+import { addInterest, decryptPhone } from '../services/contact';
 import {
   fetchListings,
   fetchTokenDetail,
@@ -25,6 +27,7 @@ interface TokenMetadata {
   name?: string;
   description?: string;
   image?: string;
+  encryptedContact?: string;
 }
 
 interface ListingWithMeta extends Listing {
@@ -78,8 +81,19 @@ function BuyModal({ listing, onClose, onSuccess }: BuyModalProps) {
   const formattedPrice = formatPrice(listing.price, 6);
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl max-w-md w-full p-6">
+    <motion.div
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
+      <motion.div
+        className="bg-white rounded-2xl max-w-md w-full p-6"
+        initial={{ scale: 0.9, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.9, opacity: 0, y: 20 }}
+        transition={{ type: "spring", damping: 25, stiffness: 300 }}
+      >
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-xl font-bold">Confirm Purchase</h3>
           <button onClick={onClose} disabled={isLoading} className="p-1 hover:bg-gray-100 rounded-full">
@@ -146,10 +160,184 @@ function BuyModal({ listing, onClose, onSuccess }: BuyModalProps) {
         <p className="text-xs text-gray-400 text-center mt-4">
           {!hasAllowance && "You'll be asked to approve USDC spending first."}
         </p>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
+
+interface InterestModalProps {
+  listing: ListingWithMeta;
+  onClose: () => void;
+}
+
+function InterestModal({ listing, onClose }: InterestModalProps) {
+  const { address } = useAccount();
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [message, setMessage] = useState('');
+  const [submitted, setSubmitted] = useState(false);
+  const [revealedPhone, setRevealedPhone] = useState<string | null>(null);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email && !phone) return;
+
+    addInterest({
+      tokenId: listing.tokenId,
+      buyerEmail: email || undefined,
+      buyerPhone: phone || undefined,
+      buyerAddress: address,
+      message: message || undefined,
+    });
+
+    if (listing.metadata?.encryptedContact) {
+      const decrypted = decryptPhone(listing.metadata.encryptedContact);
+      setRevealedPhone(decrypted);
+    }
+
+    setSubmitted(true);
+  };
+
+  return (
+    <motion.div
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
+      <motion.div
+        className="bg-white rounded-2xl max-w-md w-full p-6"
+        initial={{ scale: 0.9, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.9, opacity: 0, y: 20 }}
+        transition={{ type: "spring", damping: 25, stiffness: 300 }}
+      >
+        {!submitted ? (
+          <>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold flex items-center gap-2">
+                Show Interest
+              </h3>
+              <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-full">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="flex gap-4 mb-6">
+              <img
+                src={listing.metadata?.image ? formatIpfsUrl(listing.metadata.image) : '/placeholder-car.png'}
+                alt={listing.metadata?.name || 'NFT'}
+                className="w-20 h-20 object-cover rounded-lg"
+              />
+              <div>
+                <h4 className="font-semibold">{listing.metadata?.name || `Token #${listing.tokenId}`}</h4>
+                <p className="text-sm text-gray-500">${formatPrice(listing.price, 6)} USDC</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <span className="flex items-center gap-2">
+                     Your Email
+                  </span>
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="your@email.com"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#008170] focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <span className="flex items-center gap-2">
+                     Your Phone (optional)
+                  </span>
+                </label>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="+1 (555) 123-4567"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#008170] focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Message (optional)</label>
+                <textarea
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  placeholder="I'm interested in this car..."
+                  rows={2}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#008170] focus:outline-none resize-none"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={!email && !phone}
+                className="w-full bg-[#008170] text-white py-3 rounded-xl font-semibold hover:bg-[#006954] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                Submit Interest
+              </button>
+            </form>
+          </>
+        ) : (
+          <div className="text-center py-4">
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: "spring", damping: 15 }}
+              className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4"
+            >
+              <CheckCircle2 className="text-green-600" size={32} />
+            </motion.div>
+
+            <h3 className="text-xl font-bold mb-2">Interest Submitted!</h3>
+
+            {revealedPhone ? (
+              <div className="bg-gray-50 rounded-xl p-4 mb-6">
+                <div className="text-sm text-gray-500 mb-1">Seller's Phone</div>
+                <div className="text-xl font-bold font-mono flex items-center justify-center gap-2">
+                  <Phone size={18} className="text-green-600" />
+                  {revealedPhone}
+                </div>
+                <button
+                  onClick={() => navigator.clipboard.writeText(revealedPhone)}
+                  className="text-sm text-accent hover:underline mt-2"
+                >
+                  Copy
+                </button>
+              </div>
+            ) : (
+              <p className="text-gray-600 text-sm mb-6">
+                The seller will be notified of your interest.
+              </p>
+            )}
+
+            <button
+              onClick={onClose}
+              className="w-full bg-foreground text-background py-3 rounded-xl font-semibold hover:bg-gray-800"
+            >
+              Close
+            </button>
+          </div>
+        )}
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// Animation variants
+const fadeInUp = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5 } }
+};
+
 
 export function Marketplace() {
   const { address, isConnected } = useAccount();
@@ -158,6 +346,7 @@ export function Marketplace() {
   const [stats, setStats] = useState<MarketplaceStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [buyingListing, setBuyingListing] = useState<ListingWithMeta | null>(null);
+  const [interestListing, setInterestListing] = useState<ListingWithMeta | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
   const loadData = async () => {
@@ -172,7 +361,7 @@ export function Marketplace() {
 
       // Fetch token details and metadata for each listing
       const listingsWithMeta = await Promise.all(
-        listingsData.listings.map(async (listing) => {
+        (listingsData.listings || []).map(async (listing) => {
           try {
             const tokenDetail = await fetchTokenDetail(listing.tokenId);
             const metadata = await fetchTokenMetadata(tokenDetail.token.tokenUri);
@@ -210,14 +399,24 @@ export function Marketplace() {
   return (
     <div className="max-w-7xl mx-auto px-6 py-8">
       {/* Header & Stats */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+      <motion.div
+        className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8"
+        initial="hidden"
+        animate="visible"
+        variants={fadeInUp}
+      >
         <div>
           <h1 className="text-3xl font-bold text-foreground">Marketplace</h1>
           <p className="text-gray-500">Browse verified listings with resale potential.</p>
         </div>
 
         {stats && (
-          <div className="flex gap-4 text-sm">
+          <motion.div
+            className="flex gap-4 text-sm"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.2 }}
+          >
             <div className="bg-gray-50 px-4 py-2 rounded-lg">
               <span className="text-gray-500">Listings: </span>
               <span className="font-bold">{stats.activeListings}</span>
@@ -226,12 +425,17 @@ export function Marketplace() {
               <span className="text-gray-500">Volume: </span>
               <span className="font-bold">${formatPrice(stats.totalVolume, 6)}</span>
             </div>
-          </div>
+          </motion.div>
         )}
-      </div>
+      </motion.div>
 
       {/* Search & Filters */}
-      <div className="flex gap-2 mb-8">
+      <motion.div
+        className="flex gap-2 mb-8"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.15 }}
+      >
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
           <input
@@ -245,15 +449,23 @@ export function Marketplace() {
         <button className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium">
           <SlidersHorizontal size={18} /> Filters
         </button>
-      </div>
+      </motion.div>
 
       {/* Listings Grid */}
       {loading ? (
-        <div className="flex items-center justify-center py-20">
+        <motion.div
+          className="flex items-center justify-center py-20"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+        >
           <Loader2 className="animate-spin text-gray-300" size={32} />
-        </div>
+        </motion.div>
       ) : filteredListings.length === 0 ? (
-        <div className="text-center py-20">
+        <motion.div
+          className="text-center py-20"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
           <p className="text-gray-500 mb-4">No listings found</p>
           {isConnected && (
             <Link
@@ -263,12 +475,15 @@ export function Marketplace() {
               Mint & List Your First NFT
             </Link>
           )}
-        </div>
+        </motion.div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
           {filteredListings.map((listing) => (
-            <div
+            <motion.div
               key={listing.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
               className="group bg-surface rounded-xl overflow-hidden border border-border"
             >
               {/* Image Container */}
@@ -320,38 +535,67 @@ export function Marketplace() {
                   </div>
 
                   {isConnected && address?.toLowerCase() !== listing.seller.toLowerCase() ? (
-                    <button
-                      onClick={() => setBuyingListing(listing)}
-                      className="flex items-center gap-2 px-4 py-2 bg-foreground text-background rounded-lg font-medium hover:bg-gray-800 transition-colors text-sm"
-                    >
-                      Buy
-                    </button>
-                  ) : (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setInterestListing(listing)}
+                        className="p-2 bg-[#008170] text-white rounded-lg hover:bg-[#006954] transition-colors"
+                        title="I'm Interested"
+                      >
+                        <Heart size={18} />
+                      </button>
+                      <button
+                        onClick={() => setBuyingListing(listing)}
+                        className="flex items-center gap-2 px-4 py-2 bg-foreground text-background rounded-lg font-medium hover:bg-gray-800 transition-colors text-sm"
+                      >
+                        Buy
+                      </button>
+                    </div>
+                  ) : address?.toLowerCase() === listing.seller.toLowerCase() ? (
                     <Link
                       to={`/asset/${listing.tokenId}`}
                       className="text-accent text-sm font-medium"
                     >
                       View Details →
                     </Link>
+                  ) : (
+                    <button
+                      onClick={() => setInterestListing(listing)}
+                      className="flex items-center gap-2 px-3 py-2 bg-pink-50 text-pink-600 rounded-lg font-medium hover:bg-pink-100 transition-colors text-sm"
+                    >
+                      <Heart size={16} />
+                      Interested
+                    </button>
                   )}
                 </div>
               </div>
-            </div>
+            </motion.div>
           ))}
         </div>
       )}
 
       {/* Buy Modal */}
-      {buyingListing && (
-        <BuyModal
-          listing={buyingListing}
-          onClose={() => setBuyingListing(null)}
-          onSuccess={() => {
-            setBuyingListing(null);
-            loadData(); // Refresh listings
-          }}
-        />
-      )}
+      <AnimatePresence>
+        {buyingListing && (
+          <BuyModal
+            listing={buyingListing}
+            onClose={() => setBuyingListing(null)}
+            onSuccess={() => {
+              setBuyingListing(null);
+              loadData(); // Refresh listings
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Interest Modal */}
+      <AnimatePresence>
+        {interestListing && (
+          <InterestModal
+            listing={interestListing}
+            onClose={() => setInterestListing(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -27,6 +27,12 @@ export interface UploadNFTResponse {
   error?: string;
 }
 
+export interface UploadMultipleImagesResponse {
+  success: boolean;
+  images?: { ipfsHash: string; ipfsUrl: string }[];
+  error?: string;
+}
+
 /**
  * Upload an image file to IPFS
  */
@@ -81,39 +87,94 @@ export async function uploadMetadata(metadata: {
 }
 
 /**
- * Upload both image and metadata in one call
+ * Upload multiple images to IPFS
+ */
+export async function uploadMultipleImages(files: File[]): Promise<UploadMultipleImagesResponse> {
+  try {
+    const uploadPromises = files.map(file => uploadImage(file));
+    const results = await Promise.all(uploadPromises);
+
+    const successfulUploads = results.filter(r => r.success && r.ipfsHash && r.ipfsUrl);
+
+    if (successfulUploads.length === 0) {
+      return {
+        success: false,
+        error: 'Failed to upload any images',
+      };
+    }
+
+    return {
+      success: true,
+      images: successfulUploads.map(r => ({
+        ipfsHash: r.ipfsHash!,
+        ipfsUrl: r.ipfsUrl!,
+      })),
+    };
+  } catch (error) {
+    console.error('Error uploading multiple images:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to upload images',
+    };
+  }
+}
+
+/**
+ * Upload both image and metadata in one call (supports multiple images)
  */
 export async function uploadNFT(
-  file: File,
+  files: File | File[],
   metadata: {
     name: string;
     description: string;
     attributes?: NFTAttribute[];
+    encryptedPhone?: string;
   }
 ): Promise<UploadNFTResponse> {
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('name', metadata.name);
-  formData.append('description', metadata.description);
-  if (metadata.attributes) {
-    formData.append('attributes', JSON.stringify(metadata.attributes));
-  }
+  const fileArray = Array.isArray(files) ? files : [files];
 
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/ipfs/upload-nft`, {
-      method: 'POST',
-      body: formData,
-    });
+  // Upload all images first
+  const imageResults = await uploadMultipleImages(fileArray);
 
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error('Error uploading NFT:', error);
+  if (!imageResults.success || !imageResults.images?.length) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to upload NFT',
+      error: imageResults.error || 'Failed to upload images',
     };
   }
+
+  // Create metadata with main image and gallery
+  const mainImage = imageResults.images[0].ipfsUrl;
+  const galleryImages = imageResults.images.map(img => img.ipfsUrl);
+
+  const fullMetadata = {
+    name: metadata.name,
+    description: metadata.description,
+    image: mainImage,
+    attributes: [
+      ...(metadata.attributes || []),
+      ...(galleryImages.length > 1 ? [{ trait_type: 'Gallery Count', value: galleryImages.length }] : []),
+    ],
+    // Store gallery images and encrypted phone in metadata
+    gallery: galleryImages,
+    ...(metadata.encryptedPhone && { encryptedContact: metadata.encryptedPhone }),
+  };
+
+  // Upload metadata
+  const metadataResult = await uploadMetadata(fullMetadata as any);
+
+  if (!metadataResult.success) {
+    return {
+      success: false,
+      error: metadataResult.error || 'Failed to upload metadata',
+    };
+  }
+
+  return {
+    success: true,
+    imageUrl: mainImage,
+    tokenUri: metadataResult.tokenUri,
+  };
 }
 
 /**
