@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { ipfsRoutes } from "./routes/ipfs";
+import { interestRoutes } from "./routes/interests";
 
 const app = new Hono();
 
@@ -25,6 +26,7 @@ app.get("/", (c) => {
 
 // Routes
 app.route("/api/ipfs", ipfsRoutes);
+app.route("/api/interests", interestRoutes);
 
 // Start server
 const port = process.env.PORT || 3001;

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAccount } from 'wagmi';
 import { ConnectKitButton } from 'connectkit';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BadgeDollarSign, CarFront, Wallet, Loader2, Tag, ExternalLink, X } from 'lucide-react';
+import { BadgeDollarSign, CarFront, Wallet, Loader2, Tag, ExternalLink, X, Mail, Phone, Heart } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import {
   fetchUserProfile,
@@ -10,7 +10,6 @@ import {
   fetchTokenDetail,
   formatIpfsUrl,
   formatPrice,
-  formatAddress,
   type Token,
   type UserProfileResponse,
   type OwnerHistory,
@@ -21,6 +20,12 @@ import {
   useListToken,
 } from '../contracts';
 import { getReLoopMarketplaceAddress } from '../contracts/addresses';
+import {
+  getInterestsBySeller,
+  getInterestStats,
+  type Interest,
+  type InterestStats,
+} from '../services/contact';
 
 interface TokenMetadata {
   name?: string;
@@ -210,6 +215,10 @@ export function Portfolio() {
   const [listingOwnerHistory, setListingOwnerHistory] = useState<OwnerHistory[]>([]);
   const [loadingTokenId, setLoadingTokenId] = useState<string | null>(null);
 
+  // Interest state
+  const [interests, setInterests] = useState<Interest[]>([]);
+  const [interestStats, setInterestStats] = useState<InterestStats>({ total: 0, last24h: 0 });
+
   const loadProfile = async () => {
     if (!address) return;
 
@@ -237,9 +246,24 @@ export function Portfolio() {
     }
   };
 
+  const loadInterests = async () => {
+    if (!address) return;
+    try {
+      const [interestsData, statsData] = await Promise.all([
+        getInterestsBySeller(address),
+        getInterestStats(address),
+      ]);
+      setInterests(interestsData);
+      setInterestStats(statsData);
+    } catch (err) {
+      console.error('Error loading interests:', err);
+    }
+  };
+
   useEffect(() => {
     if (address) {
       loadProfile();
+      loadInterests();
     }
   }, [address]);
 
@@ -469,6 +493,78 @@ export function Portfolio() {
               </motion.div>
             );
           })}
+        </motion.div>
+      )}
+
+      {/* Received Interests Section */}
+      {interests.length > 0 && (
+        <motion.div
+          className="mt-12"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              <Heart className="text-[#008170]" size={20} />
+              Received Interests
+              {interestStats.last24h > 0 && (
+                <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full">
+                  +{interestStats.last24h} today
+                </span>
+              )}
+            </h2>
+            <span className="text-sm text-gray-500">{interestStats.total} total</span>
+          </div>
+
+          <div className="bg-surface rounded-xl border border-border overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="text-left px-4 py-3 text-sm font-medium text-gray-500">Token</th>
+                  <th className="text-left px-4 py-3 text-sm font-medium text-gray-500">Contact</th>
+                  <th className="text-left px-4 py-3 text-sm font-medium text-gray-500">Message</th>
+                  <th className="text-right px-4 py-3 text-sm font-medium text-gray-500">Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {interests.slice(0, 10).map((interest) => (
+                  <tr key={interest.id} className="border-t border-gray-100">
+                    <td className="px-4 py-3">
+                      <Link
+                        to={`/asset/${interest.token_id}`}
+                        className="font-mono text-sm text-accent hover:underline"
+                      >
+                        #{interest.token_id}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="text-sm space-y-0.5">
+                        {interest.buyer_email && (
+                          <div className="flex items-center gap-1.5">
+                            <Mail size={12} className="text-gray-400" />
+                            <span>{interest.buyer_email}</span>
+                          </div>
+                        )}
+                        {interest.buyer_phone && (
+                          <div className="flex items-center gap-1.5 text-gray-500">
+                            <Phone size={12} className="text-gray-400" />
+                            <span>{interest.buyer_phone}</span>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600 max-w-xs truncate">
+                      {interest.message || '-'}
+                    </td>
+                    <td className="px-4 py-3 text-right text-sm text-gray-500">
+                      {new Date(interest.created_at).toLocaleDateString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </motion.div>
       )}
 

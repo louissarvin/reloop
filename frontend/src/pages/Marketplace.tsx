@@ -178,18 +178,23 @@ function InterestModal({ listing, onClose }: InterestModalProps) {
   const [submitted, setSubmitted] = useState(false);
   const [revealedPhone, setRevealedPhone] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email && !phone) return;
 
-    addInterest({
+    // Save interest to backend (will send email to buyer with seller's phone)
+    await addInterest({
       tokenId: listing.tokenId,
+      sellerAddress: listing.seller,
       buyerEmail: email || undefined,
       buyerPhone: phone || undefined,
       buyerAddress: address,
       message: message || undefined,
+      encryptedSellerPhone: listing.metadata?.encryptedContact,
+      tokenName: listing.metadata?.name || `Token #${listing.tokenId}`,
     });
 
+    // Also reveal the seller's phone in the UI
     if (listing.metadata?.encryptedContact) {
       const decrypted = decryptPhone(listing.metadata.encryptedContact);
       setRevealedPhone(decrypted);

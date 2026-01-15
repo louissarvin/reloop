@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useAccount } from 'wagmi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Share2, ShieldCheck, Tag, Loader2, Clock, User, X, Heart, Mail, Phone, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
-import { addInterest, hasShownInterest, decryptPhone } from '../services/contact';
+import { addInterest, decryptPhone } from '../services/contact';
 import {
   fetchTokenDetail,
   fetchTokenMetadata,
@@ -149,20 +149,24 @@ export function Detail() {
     approveNFT(marketplaceAddress, BigInt(id!));
   };
 
-  const handleInterestSubmit = (e: React.FormEvent) => {
+  const handleInterestSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!interestEmail && !interestPhone) return;
+    if (!data) return;
 
-    // Save interest
-    addInterest({
+    // Save interest to backend (will send email to buyer with seller's phone)
+    await addInterest({
       tokenId: id!,
+      sellerAddress: data.token.owner,
       buyerEmail: interestEmail || undefined,
       buyerPhone: interestPhone || undefined,
       buyerAddress: address,
       message: interestMessage || undefined,
+      encryptedSellerPhone: metadata?.encryptedContact,
+      tokenName: metadata?.name || `Token #${id}`,
     });
 
-    // Decrypt and reveal the seller's phone
+    // Also reveal the seller's phone in the UI
     if (metadata?.encryptedContact) {
       const phone = decryptPhone(metadata.encryptedContact);
       setRevealedPhone(phone);
@@ -170,9 +174,6 @@ export function Detail() {
 
     setInterestSubmitted(true);
   };
-
-  // Check if user already showed interest
-  const alreadyInterested = id ? hasShownInterest(id, address, interestEmail) : false;
 
   // Gallery navigation
   const galleryImages = metadata?.gallery || (metadata?.image ? [metadata.image] : []);

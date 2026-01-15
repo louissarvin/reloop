@@ -15,11 +15,14 @@
   },
   "dependencies": {
     "@ponder/core": "^0.7.0",
+    "better-sqlite3": "^12.6.0",
     "hono": "^4.11.4",
     "pinata-web3": "^0.5.4",
+    "resend": "^6.7.0",
     "viem": "^2.21.0"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
     "@types/bun": "latest",
     "@types/node": "^20.0.0",
     "concurrently": "^9.1.2",
