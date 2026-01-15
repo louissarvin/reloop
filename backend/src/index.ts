@@ -10,7 +10,7 @@ app.use("*", logger());
 app.use(
   "*",
   cors({
-    origin: ["http://localhost:5173", "http://localhost:5174", "https://reloop.vercel.app", "https://www.reloop.vercel.app"],
+    origin: ["http://localhost:5173", "http://localhost:5174", "https://reloop-tau.vercel.app", "https://www.reloop-tau.vercel.app"],
     allowMethods: ["GET", "POST", "OPTIONS"],
     allowHeaders: ["Content-Type"],
   })
