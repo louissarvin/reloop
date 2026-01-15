@@ -74,20 +74,20 @@ export interface MarketplaceStats {
 }
 
 // API Response types
-export interface PaginatedResponse<T> {
+export interface PaginatedResponse {
   limit: number;
   offset: number;
 }
 
-export interface TokensResponse extends PaginatedResponse<Token> {
+export interface TokensResponse extends PaginatedResponse {
   tokens: Token[];
 }
 
-export interface ListingsResponse extends PaginatedResponse<Listing> {
+export interface ListingsResponse extends PaginatedResponse {
   listings: Listing[];
 }
 
-export interface SalesResponse extends PaginatedResponse<Sale> {
+export interface SalesResponse extends PaginatedResponse {
   sales: Sale[];
 }
 

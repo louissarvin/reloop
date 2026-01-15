@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAccount } from 'wagmi';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Share2, ShieldCheck, Tag, Loader2, Clock, User, X, Heart, Mail, Phone, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Share2, ShieldCheck, Tag, Loader2, Clock, User, X, Phone, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { addInterest, decryptPhone } from '../services/contact';
 import {
   fetchTokenDetail,
@@ -209,7 +209,7 @@ export function Detail() {
     );
   }
 
-  const { token, listing, ownerHistory, sales } = data;
+  const { token, listing, ownerHistory } = data;
   const isOwner = address?.toLowerCase() === token.owner.toLowerCase();
   const isListed = listing?.active;
   const splits = JSON.parse(token.profitSplitsBps || '[]').map((bps: number) => bps / 100);

@@ -15,7 +15,6 @@ createRoot(document.getElementById("root")!).render(
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
         <ConnectKitProvider
-          theme="custom"
           mode="light"
           customTheme={reloopTheme}
           options={{

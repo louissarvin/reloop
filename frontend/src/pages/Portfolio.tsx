@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAccount } from 'wagmi';
 import { ConnectKitButton } from 'connectkit';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BadgeDollarSign, CarFront, Wallet, Loader2, Tag, ExternalLink, X, Mail, Phone, Heart } from 'lucide-react';
+import { CarFront, Wallet, Loader2, Tag, ExternalLink, X, Mail, Phone, Heart } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import {
   fetchUserProfile,

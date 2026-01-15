@@ -1,5 +1,5 @@
 
-import { ArrowDown, Users } from 'lucide-react';
+import { ArrowDown } from 'lucide-react';
 
 interface CascadeVisualizerProps {
   splits: number[];

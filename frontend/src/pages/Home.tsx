@@ -10,8 +10,6 @@ import {
   TrendingUp,
   Users,
   Coins,
-  Calculator,
-  Zap,
   ShoppingCart,
 } from 'lucide-react';
 import {
@@ -69,7 +67,7 @@ export function Home() {
   const [listings, setListings] = useState<ListingWithMeta[]>([]);
   const [stats, setStats] = useState<MarketplaceStats | null>(null);
   const [recentSales, setRecentSales] = useState<SaleWithMeta[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
 
   // Profit Calculator State
@@ -171,7 +169,7 @@ export function Home() {
   // Animation variants
   const fadeInUp = {
     hidden: { opacity: 0, y: 30 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: 'easeOut' } }
+    visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: 'easeOut' as const } }
   };
 
   const staggerContainer = {

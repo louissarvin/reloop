@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { PlusCircle, Wallet, LayoutGrid, Coins, Loader2 } from "lucide-react";
+import { PlusCircle, Wallet, LayoutGrid } from "lucide-react";
 import { ConnectKitButton } from "connectkit";
 import { useAccount } from "wagmi";
 import { cn } from "../../lib/utils";

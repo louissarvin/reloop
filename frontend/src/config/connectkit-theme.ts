@@ -1,4 +1,6 @@
-import type { CustomTheme } from "connectkit/build/types";
+import type { Types } from "connectkit";
+
+type CustomTheme = Types.CustomTheme;
 
 // ReLoop brand colors
 const colors = {

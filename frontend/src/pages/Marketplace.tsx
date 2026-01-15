@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAccount } from 'wagmi';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, Search, SlidersHorizontal, ArrowLeftRight, CheckCircle2, X, Heart, Mail, Phone } from 'lucide-react';
+import { Loader2, Search, SlidersHorizontal, CheckCircle2, X, Heart, Phone } from 'lucide-react';
 import { addInterest, decryptPhone } from '../services/contact';
 import {
   fetchListings,
